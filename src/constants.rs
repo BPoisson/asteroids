@@ -1,7 +1,7 @@
 use ggez::glam::Vec2;
 
-pub const GRID_SIZE: Vec2 = Vec2::new(40.0, 40.0);
-pub const GRID_CELL_DIM: f32 = 25.0;
+pub const GRID_SIZE: Vec2 = Vec2::new(100.0, 100.0);
+pub const GRID_CELL_DIM: f32 = 10.0;
 
 pub const SCREEN_SIZE: Vec2 =
     Vec2::new(

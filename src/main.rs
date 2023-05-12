@@ -5,15 +5,13 @@ mod constants;
 
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
-use ggez::{conf, Context, ContextBuilder, event, GameError, GameResult, graphics};
-use ggez::conf::{Conf, WindowMode, WindowSetup};
+use ggez::{Context, ContextBuilder, event, GameError, GameResult};
+use ggez::conf::{WindowMode, WindowSetup};
 use ggez::glam::Vec2;
-use ggez::graphics::{Canvas, Color, DrawMode, Rect};
+use ggez::graphics::{Canvas, Color};
 use ggez::input::keyboard::{KeyCode, KeyInput};
-use ggez::winit::event::VirtualKeyCode;
-use rand::Rng;
 use crate::asteroid::Asteroid;
-use crate::constants::{GRID_CELL_DIM, MILLIS_PER_FRAME, SCREEN_SIZE};
+use crate::constants::{MILLIS_PER_FRAME, SCREEN_SIZE};
 use crate::projectile::Projectile;
 use crate::ship::Ship;
 
@@ -37,13 +35,7 @@ impl GameState {
         }
 
         GameState {
-            ship: Ship::new(
-                3,
-                Rect::new(
-                    SCREEN_SIZE.x / 2.0,
-                    SCREEN_SIZE.y / 2.0,
-                    GRID_CELL_DIM,
-                    GRID_CELL_DIM)),
+            ship: Ship::new(ctx),
             asteroids,
             projectiles: Vec::new(),
             input_set: HashSet::new(),
@@ -58,8 +50,8 @@ impl event::EventHandler<GameError> for GameState {
             for key in &self.input_set {
                 match key {
                     KeyCode::Up => {
-                        self.ship.rect.x += self.ship.forward.x * self.ship.speed;
-                        self.ship.rect.y += self.ship.forward.y * self.ship.speed;
+                        self.ship.position.x += self.ship.forward.x * self.ship.speed;
+                        self.ship.position.y += self.ship.forward.y * self.ship.speed;
                         self.ship.clamp();
                     }
                     KeyCode::Down => {
@@ -80,7 +72,7 @@ impl event::EventHandler<GameError> for GameState {
             }
             // Projectile updates.
             for i in 0..self.projectiles.len() {
-                let mut projectile = self.projectiles.get_mut(i).unwrap();
+                let projectile: &mut Projectile = self.projectiles.get_mut(i).unwrap();
 
                 projectile.move_forward(ctx).unwrap();
                 projectile.set_out_of_bounds().unwrap();
@@ -88,7 +80,7 @@ impl event::EventHandler<GameError> for GameState {
 
             // Asteroid updates
             for i in 0..self.asteroids.len() {
-                let mut asteroid = self.asteroids.get_mut(i).unwrap();
+                let asteroid: &mut Asteroid = self.asteroids.get_mut(i).unwrap();
 
                 asteroid.move_forward(ctx).unwrap();
             }
@@ -96,10 +88,10 @@ impl event::EventHandler<GameError> for GameState {
             // Handle projectile collision with asteroids.
             let mut new_asteroids: Vec<Asteroid> = Vec::new();
             for i in 0..self.projectiles.len() {
-                let mut projectile = self.projectiles.get_mut(i).unwrap();
+                let mut projectile: &mut Projectile = self.projectiles.get_mut(i).unwrap();
 
                 for j in 0..self.asteroids.len() {
-                    let mut asteroid = self.asteroids.get_mut(j).unwrap();
+                    let asteroid: &mut Asteroid = self.asteroids.get_mut(j).unwrap();
 
                     if projectile_hit(projectile, asteroid) {
                         projectile.to_remove = true;
@@ -120,7 +112,7 @@ impl event::EventHandler<GameError> for GameState {
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas: Canvas = Canvas::from_frame(ctx, Color::BLACK);
 
-        self.ship.draw(&mut canvas).unwrap();
+        self.ship.draw(ctx, &mut canvas).unwrap();
 
         for projectile in &mut self.projectiles {
             projectile.draw(&mut canvas).unwrap();
@@ -135,21 +127,23 @@ impl event::EventHandler<GameError> for GameState {
     }
 
     fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, _repeated: bool) -> Result<(), GameError> {
-        let key: VirtualKeyCode = input.keycode.unwrap();
+        if let Some(key) = input.keycode {
+            if key == KeyCode::Space && !self.input_set.contains(&key) {
+                let projectile: Projectile = self.ship.shoot(ctx);
 
-        if key == KeyCode::Space && !self.input_set.contains(&key) {
-            let projectile: Projectile = self.ship.shoot(ctx);
-
-            self.projectiles.push(projectile);
+                self.projectiles.push(projectile);
+            }
+            self.input_set.insert(key);
         }
-        self.input_set.insert(key);
+
         Ok(())
     }
 
     fn key_up_event(&mut self, _ctx: &mut Context, input: KeyInput) -> Result<(), GameError> {
-        let key: VirtualKeyCode = input.keycode.unwrap();
+        if let Some(key) = input.keycode {
+            self.input_set.remove(&key);
+        }
 
-        self.input_set.remove(&key);
         Ok(())
     }
 }
@@ -177,7 +171,7 @@ fn main() {
         .build()
         .unwrap();
 
-    let game_state = GameState::new(&ctx);
+    let game_state: GameState = GameState::new(&ctx);
 
     event::run(ctx, event_loop, game_state);
 }

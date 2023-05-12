@@ -1,14 +1,13 @@
-use ggez::{Context, GameError, graphics, mint};
-use ggez::graphics::{Canvas, Color, Mesh, Rect};
-use ggez::mint::{Point2, Vector2};
+use ggez::{Context, GameError, graphics};
+use ggez::graphics::{Canvas, Color, Mesh};
 use crate::{Vec2};
 use crate::constants::SCREEN_SIZE;
 
 pub const PROJECTILE_RADIUS: f32 = 5.0;
 
 pub struct Projectile {
-    pub position: Vec2,
     pub circle_mesh: Mesh,
+    pub position: Vec2,
     pub forward: Vec2,
     pub speed: f32,
     pub to_remove: bool
@@ -16,7 +15,7 @@ pub struct Projectile {
 
 impl Projectile {
     pub fn new(ctx: &Context, x_pos: f32, y_pos: f32, forward_x: f32, forward_y: f32) -> Self {
-        let position:Vec2 = Vec2::new(x_pos, y_pos);
+        let position: Vec2 = Vec2::new(x_pos, y_pos);
 
         let circle_mesh: Mesh = Mesh::new_circle(
             ctx,
@@ -28,8 +27,8 @@ impl Projectile {
         ).unwrap();
 
         return Projectile {
-            position,
             circle_mesh,
+            position,
             forward: Vec2::new(forward_x, forward_y),
             speed: 15.0,
             to_remove: false

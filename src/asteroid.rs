@@ -1,6 +1,6 @@
 use ggez::{Context, GameError, graphics};
 use ggez::glam::Vec2;
-use ggez::graphics::{Canvas, Color, Mesh, Rect};
+use ggez::graphics::{Canvas, Color, Mesh};
 use rand::Rng;
 use rand::rngs::ThreadRng;
 use crate::constants::SCREEN_SIZE;
@@ -10,8 +10,8 @@ pub const ASTEROID_MED_RADIUS: f32 = 35.0;
 pub const ASTEROID_SMALL_RADIUS: f32 = 20.0;
 
 pub struct Asteroid {
-    pub position: Vec2,
     pub circle_mesh: Mesh,
+    pub position: Vec2,
     pub forward: Vec2,
     pub radius: f32,
     pub tolerance: f32,
@@ -43,8 +43,8 @@ impl Asteroid {
         ).unwrap();
 
         return Asteroid {
-            position,
             circle_mesh,
+            position,
             forward,
             radius: ASTEROID_BIG_RADIUS,
             tolerance,
@@ -56,8 +56,8 @@ impl Asteroid {
     pub fn new_smaller(ctx: &Context, parent_radius: f32, parent_x: f32, parent_y: f32) -> Self {
         let mut rng: ThreadRng = rand::thread_rng();
 
-        let x_pos: f32 = rng.gen_range(parent_x - 50.0..parent_x + 80.0);
-        let y_pos: f32 = rng.gen_range(parent_y - 50.0..parent_y + 80.0);
+        let x_pos: f32 = rng.gen_range(parent_x - 20.0..parent_x + 20.0);
+        let y_pos: f32 = rng.gen_range(parent_y - 20.0..parent_y + 20.0);
         let x_dir: f32 = rng.gen_range(-1.0..=1.0);
         let y_dir: f32 = rng.gen_range(-1.0..=1.0);
         let position:Vec2 = Vec2::new(x_pos, y_pos);
@@ -75,12 +75,12 @@ impl Asteroid {
         ).unwrap();
 
         return Asteroid {
-            position,
             circle_mesh,
+            position,
             forward,
             radius,
             tolerance,
-            speed: 1.0,
+            speed: 2.0,
             destroyed: false
         }
     }
@@ -141,10 +141,12 @@ impl Asteroid {
     }
 
     fn next_radius(radius: f32) -> f32 {
-        match radius  {
-            ASTEROID_BIG_RADIUS => ASTEROID_MED_RADIUS,
-            ASTEROID_MED_RADIUS => ASTEROID_SMALL_RADIUS,
-            _ => 0.0
+        if radius == ASTEROID_BIG_RADIUS {
+            return ASTEROID_MED_RADIUS;
+        } else if radius == ASTEROID_MED_RADIUS {
+            return ASTEROID_SMALL_RADIUS;
+        } else {
+            return 0.0;
         }
     }
 }
