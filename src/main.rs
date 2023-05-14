@@ -2,16 +2,20 @@ mod ship;
 mod projectile;
 mod asteroid;
 mod constants;
+mod collision;
+mod particle;
 
 use std::collections::HashSet;
-use std::time::{Duration, Instant};
+use std::error::Error;
+use std::time::{Instant};
 use ggez::{Context, ContextBuilder, event, GameError, GameResult};
 use ggez::conf::{WindowMode, WindowSetup};
 use ggez::glam::Vec2;
 use ggez::graphics::{Canvas, Color};
 use ggez::input::keyboard::{KeyCode, KeyInput};
 use crate::asteroid::Asteroid;
-use crate::constants::{MILLIS_PER_FRAME, SCREEN_SIZE};
+use crate::constants::{SCREEN_SIZE};
+use crate::particle::Particle;
 use crate::projectile::Projectile;
 use crate::ship::Ship;
 
@@ -22,6 +26,7 @@ struct GameState {
     ship: Ship,
     asteroids: Vec<Asteroid>,
     projectiles: Vec<Projectile>,
+    particles: Vec<Particle>,
     input_set: HashSet<KeyCode>,
     last_update: Instant
 }
@@ -38,6 +43,7 @@ impl GameState {
             ship: Ship::new(ctx),
             asteroids,
             projectiles: Vec::new(),
+            particles: Vec::new(),
             input_set: HashSet::new(),
             last_update: Instant::now()
         }
@@ -46,83 +52,94 @@ impl GameState {
 
 impl event::EventHandler<GameError> for GameState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
-        if Instant::now() - self.last_update >= Duration::from_millis(MILLIS_PER_FRAME) {
-            for key in &self.input_set {
-                match key {
-                    KeyCode::Up => {
-                        self.ship.position.x += self.ship.forward.x * self.ship.speed;
-                        self.ship.position.y += self.ship.forward.y * self.ship.speed;
-                        self.ship.clamp();
-                    }
-                    KeyCode::Down => {
+        let dt: f32 = (Instant::now() - self.last_update).as_secs_f32();
 
-                    }
-                    KeyCode::Left => {
-                        self.ship.rotation -= 5.0_f32.to_radians();
-                        self.ship.forward.x = self.ship.rotation.cos();
-                        self.ship.forward.y = self.ship.rotation.sin();
-                    }
-                    KeyCode::Right => {
-                        self.ship.rotation += 5.0_f32.to_radians();
-                        self.ship.forward.x = self.ship.rotation.cos();
-                        self.ship.forward.y = self.ship.rotation.sin();
-                    }
-                    _ => ()
+        for key in &self.input_set {
+            match key {
+                KeyCode::Up => {
+                    self.ship.move_forward(dt);
+                    self.ship.clamp();
                 }
-            }
-            // Projectile updates.
-            for i in 0..self.projectiles.len() {
-                let projectile: &mut Projectile = self.projectiles.get_mut(i).unwrap();
-
-                projectile.move_forward(ctx).unwrap();
-                projectile.set_out_of_bounds().unwrap();
-            }
-
-            // Asteroid updates
-            for i in 0..self.asteroids.len() {
-                let asteroid: &mut Asteroid = self.asteroids.get_mut(i).unwrap();
-
-                asteroid.move_forward(ctx).unwrap();
-            }
-
-            // Handle projectile collision with asteroids.
-            let mut new_asteroids: Vec<Asteroid> = Vec::new();
-            for i in 0..self.projectiles.len() {
-                let mut projectile: &mut Projectile = self.projectiles.get_mut(i).unwrap();
-
-                for j in 0..self.asteroids.len() {
-                    let asteroid: &mut Asteroid = self.asteroids.get_mut(j).unwrap();
-
-                    if projectile_hit(projectile, asteroid) {
-                        projectile.to_remove = true;
-                        // Asteroid breaks into smaller pieces.
-                        new_asteroids.append(&mut asteroid.destroy_asteroid(ctx));
-                    }
+                KeyCode::Left => {
+                    self.ship.rotate(-270_f32.to_radians(), dt);
                 }
+                KeyCode::Right => {
+                    self.ship.rotate(270_f32.to_radians(), dt);
+                }
+                _ => ()
             }
-            self.projectiles.retain(|p| !p.to_remove);
-            self.asteroids.retain(|a| !a.destroyed);
-            self.asteroids.append(&mut new_asteroids);
-
-            self.last_update = Instant::now();
         }
+        // Projectile updates.
+        for i in 0..self.projectiles.len() {
+            if let Some(projectile) = self.projectiles.get_mut(i) {
+                projectile.move_forward(ctx, dt)?;
+                projectile.set_out_of_bounds()?;
+            }
+        }
+
+        // Asteroid updates
+        for i in 0..self.asteroids.len() {
+            if let Some(asteroid) = self.asteroids.get_mut(i) {
+                asteroid.move_forward(ctx, dt)?;
+            }
+        }
+
+        // Particle updates
+        for i in 0..self.asteroids.len() {
+            if let Some(particle) = self.particles.get_mut(i) {
+                particle.move_forward(dt)?;
+                particle.check_expiration(Instant::now())?;
+            }
+        }
+
+        let mut asteroid_pieces: Vec<Asteroid> = Vec::new();
+        let mut new_particles: Vec<Particle> = Vec::new();
+        // Handle projectile collision with asteroids.
+        for i in 0..self.projectiles.len() {
+            if let Some(projectile) = self.projectiles.get_mut(i) {
+                for j in 0..self.asteroids.len() {
+                    if let Some(asteroid) = self.asteroids.get_mut(j) {
+                        if collision::projectile_hit(projectile, asteroid) {
+                            // Add to particle effect
+                            new_particles.append(&mut Particle::create_particle_effect(projectile.position));
+                            // Asteroid breaks into smaller pieces.
+                            asteroid_pieces.append(&mut asteroid.destroy_asteroid(ctx));
+
+                            projectile.to_remove = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        self.projectiles.retain(|p| !p.to_remove);
+        self.asteroids.retain(|a| !a.destroyed);
+        self.asteroids.append(&mut asteroid_pieces);
+        self.particles.retain(|p| !p.expired);
+        self.particles.append(&mut new_particles);
+
+        self.last_update = Instant::now();
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas: Canvas = Canvas::from_frame(ctx, Color::BLACK);
 
-        self.ship.draw(ctx, &mut canvas).unwrap();
+        self.ship.draw(ctx, &mut canvas)?;
 
         for projectile in &mut self.projectiles {
-            projectile.draw(&mut canvas).unwrap();
+            projectile.draw(&mut canvas)?;
         }
 
         for asteroid in &mut self.asteroids {
-            asteroid.draw(&mut canvas).unwrap();
+            asteroid.draw(&mut canvas)?;
         }
 
-        canvas.finish(ctx).unwrap();
+        for particle in &mut self.particles {
+            particle.draw(&mut canvas)?;
+        }
+
+        canvas.finish(ctx)?;
         Ok(())
     }
 
@@ -148,28 +165,11 @@ impl event::EventHandler<GameError> for GameState {
     }
 }
 
-fn projectile_hit(projectile: &mut Projectile, asteroid: &mut Asteroid) -> bool {
-    let asteroid_x: f32 = asteroid.position.x;
-    let asteroid_y: f32 = asteroid.position.y;
-    let asteroid_radius: f32 = asteroid.radius;
-    let projectile_x: f32 = projectile.position.x;
-    let projectile_y: f32 = projectile.position.y;
-
-    let asteroid_x_range: (f32, f32) = (asteroid_x - asteroid_radius, asteroid_x + asteroid_radius);
-    let asteroid_y_range: (f32, f32) = (asteroid_y - asteroid_radius, asteroid_y + asteroid_radius);
-
-    let x_overlap: bool = projectile_x >= asteroid_x_range.0 && projectile_x <= asteroid_x_range.1;
-    let y_overlap: bool = projectile_y >= asteroid_y_range.0 && projectile_y <= asteroid_y_range.1;
-
-    return x_overlap && y_overlap;
-}
-
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let (ctx, event_loop) = ContextBuilder::new(GAME_ID, AUTHOR)
         .window_setup(WindowSetup::default().title(GAME_ID))
         .window_mode(WindowMode::default().dimensions(SCREEN_SIZE.x, SCREEN_SIZE.y))
-        .build()
-        .unwrap();
+        .build()?;
 
     let game_state: GameState = GameState::new(&ctx);
 

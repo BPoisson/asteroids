@@ -4,6 +4,7 @@ use crate::{Vec2};
 use crate::constants::SCREEN_SIZE;
 
 pub const PROJECTILE_RADIUS: f32 = 5.0;
+pub const PROJECTILE_SPEED: f32 = 1000.0;
 
 pub struct Projectile {
     pub circle_mesh: Mesh,
@@ -30,7 +31,7 @@ impl Projectile {
             circle_mesh,
             position,
             forward: Vec2::new(forward_x, forward_y),
-            speed: 15.0,
+            speed: PROJECTILE_SPEED,
             to_remove: false
         }
     }
@@ -44,9 +45,9 @@ impl Projectile {
         Ok(())
     }
 
-    pub fn move_forward(&mut self, ctx: &Context) -> Result<(), GameError> {
-        self.position.x = self.position.x + self.forward.x * self.speed;
-        self.position.y = self.position.y + self.forward.y * self.speed;
+    pub fn move_forward(&mut self, ctx: &Context, dt: f32) -> Result<(), GameError> {
+        self.position.x = self.position.x + self.forward.x * self.speed * dt;
+        self.position.y = self.position.y + self.forward.y * self.speed * dt;
 
         self.circle_mesh = Mesh::new_circle(
             ctx,

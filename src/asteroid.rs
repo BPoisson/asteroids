@@ -5,9 +5,13 @@ use rand::Rng;
 use rand::rngs::ThreadRng;
 use crate::constants::SCREEN_SIZE;
 
-pub const ASTEROID_BIG_RADIUS: f32 = 50.0;
-pub const ASTEROID_MED_RADIUS: f32 = 35.0;
-pub const ASTEROID_SMALL_RADIUS: f32 = 20.0;
+pub const ASTEROID_BIG_RADIUS: f32 = 80.0;
+pub const ASTEROID_MED_RADIUS: f32 = 50.0;
+pub const ASTEROID_SMALL_RADIUS: f32 = 35.0;
+
+pub const ASTEROID_BIG_SPEED: f32 = 100.0;
+pub const ASTEROID_MED_SPEED: f32 = 200.0;
+pub const ASTEROID_SMALL_SPEED: f32 = 300.0;
 
 pub struct Asteroid {
     pub circle_mesh: Mesh,
@@ -29,8 +33,8 @@ impl Asteroid {
         let y_pos: f32 = rng.gen_range(range_start..range_end.1);
         let x_dir: f32 = rng.gen_range(-1.0..=1.0);
         let y_dir: f32 = rng.gen_range(-1.0..=1.0);
-        let position:Vec2 = Vec2::new(x_pos, y_pos);
-        let forward:Vec2 = Vec2::new(x_dir, y_dir);
+        let position: Vec2 = Vec2::new(x_pos, y_pos);
+        let forward: Vec2 = Vec2::new(x_dir, y_dir);
         let tolerance: f32 = rng.gen_range(0.0..5.0);
 
         let circle_mesh: Mesh = Mesh::new_circle(
@@ -48,7 +52,7 @@ impl Asteroid {
             forward,
             radius: ASTEROID_BIG_RADIUS,
             tolerance,
-            speed: 1.0,
+            speed: ASTEROID_BIG_SPEED,
             destroyed: false
         }
     }
@@ -63,7 +67,8 @@ impl Asteroid {
         let position:Vec2 = Vec2::new(x_pos, y_pos);
         let forward:Vec2 = Vec2::new(x_dir, y_dir);
         let tolerance: f32 = rng.gen_range(0.0..5.0);
-        let radius = Asteroid::next_radius(parent_radius);
+        let radius: f32 = Asteroid::next_radius(parent_radius);
+        let speed: f32 = Asteroid::speed_for_radius(parent_radius);
 
         let circle_mesh: Mesh = Mesh::new_circle(
             ctx,
@@ -80,7 +85,7 @@ impl Asteroid {
             forward,
             radius,
             tolerance,
-            speed: 2.0,
+            speed,
             destroyed: false
         }
     }
@@ -94,9 +99,9 @@ impl Asteroid {
         Ok(())
     }
 
-    pub fn move_forward(&mut self, ctx: &Context) -> Result<(), GameError> {
-        self.position.x = self.position.x + self.forward.x * self.speed;
-        self.position.y = self.position.y + self.forward.y * self.speed;
+    pub fn move_forward(&mut self, ctx: &Context, dt: f32) -> Result<(), GameError> {
+        self.position.x = self.position.x + self.forward.x * self.speed * dt;
+        self.position.y = self.position.y + self.forward.y * self.speed * dt;
 
         self.clamp();
 
@@ -107,7 +112,7 @@ impl Asteroid {
             self.radius,
             self.tolerance,
             Color::WHITE
-        ).unwrap();
+        )?;
 
         Ok(())
     }
@@ -147,6 +152,16 @@ impl Asteroid {
             return ASTEROID_SMALL_RADIUS;
         } else {
             return 0.0;
+        }
+    }
+
+    fn speed_for_radius(radius: f32) -> f32 {
+        if radius == ASTEROID_BIG_RADIUS {
+            return ASTEROID_BIG_SPEED;
+        } else if radius == ASTEROID_MED_RADIUS {
+            return ASTEROID_MED_SPEED;
+        } else {
+            return ASTEROID_SMALL_SPEED;
         }
     }
 }

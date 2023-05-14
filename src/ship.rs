@@ -24,7 +24,7 @@ impl Ship {
             position,
             rotation,
             forward: Vec2::new(0.0, -1.0),
-            speed: 8.0,
+            speed: 500.0,
             lives: 4
         }
     }
@@ -37,7 +37,7 @@ impl Ship {
             DrawMode::fill(),
             &triangle_points,
             Color::WHITE
-        ).unwrap();
+        )?;
 
         canvas.draw(
             &self.triangle_mesh,
@@ -45,6 +45,17 @@ impl Ship {
         );
 
         Ok(())
+    }
+
+    pub fn move_forward(&mut self, dt: f32) -> () {
+        self.position.x += self.forward.x * self.speed * dt;
+        self.position.y += self.forward.y * self.speed * dt;
+    }
+
+    pub fn rotate(&mut self, radians: f32, dt: f32) -> () {
+        self.rotation += radians * dt;
+        self.forward.x = self.rotation.cos();
+        self.forward.y = self.rotation.sin();
     }
 
     pub fn shoot(&self, ctx: &Context) -> Projectile {
