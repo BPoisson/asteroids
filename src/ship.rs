@@ -34,7 +34,7 @@ impl Ship {
 
         self.triangle_mesh = Mesh::new_polygon(
             ctx,
-            DrawMode::fill(),
+            DrawMode::stroke(2.0),
             &triangle_points,
             Color::WHITE
         )?;
@@ -86,7 +86,7 @@ impl Ship {
 
         return Mesh::new_polygon(
             ctx,
-            DrawMode::fill(),
+            DrawMode::stroke(2.0),
             &triangle_points,
             Color::WHITE
         ).unwrap();

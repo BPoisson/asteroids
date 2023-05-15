@@ -7,7 +7,7 @@ use crate::constants::SCREEN_SIZE;
 
 pub const ASTEROID_BIG_RADIUS: f32 = 80.0;
 pub const ASTEROID_MED_RADIUS: f32 = 50.0;
-pub const ASTEROID_SMALL_RADIUS: f32 = 35.0;
+pub const ASTEROID_SMALL_RADIUS: f32 = 30.0;
 
 pub const ASTEROID_BIG_SPEED: f32 = 100.0;
 pub const ASTEROID_MED_SPEED: f32 = 200.0;
@@ -24,16 +24,10 @@ pub struct Asteroid {
 }
 
 impl Asteroid {
-    pub fn new(ctx: &Context) -> Self {
-        let range_start: f32 = 5.0;
-        let range_end: (f32, f32) = (SCREEN_SIZE.x - 5.0, SCREEN_SIZE.y - 5.0);
-        let mut rng: ThreadRng = rand::thread_rng();
-
-        let x_pos: f32 = rng.gen_range(range_start..range_end.0);
-        let y_pos: f32 = rng.gen_range(range_start..range_end.1);
+    pub fn new(ctx: &Context, rng: &mut ThreadRng) -> Self {
+        let position: Vec2 =  Asteroid::get_spawn_position(rng, ASTEROID_BIG_RADIUS);
         let x_dir: f32 = rng.gen_range(-1.0..=1.0);
         let y_dir: f32 = rng.gen_range(-1.0..=1.0);
-        let position: Vec2 = Vec2::new(x_pos, y_pos);
         let forward: Vec2 = Vec2::new(x_dir, y_dir);
         let tolerance: f32 = rng.gen_range(0.0..5.0);
 
@@ -57,9 +51,7 @@ impl Asteroid {
         }
     }
 
-    pub fn new_smaller(ctx: &Context, parent_radius: f32, parent_x: f32, parent_y: f32) -> Self {
-        let mut rng: ThreadRng = rand::thread_rng();
-
+    pub fn new_smaller(ctx: &Context, rng: &mut ThreadRng, parent_radius: f32, parent_x: f32, parent_y: f32) -> Self {
         let x_pos: f32 = rng.gen_range(parent_x - 20.0..parent_x + 20.0);
         let y_pos: f32 = rng.gen_range(parent_y - 20.0..parent_y + 20.0);
         let x_dir: f32 = rng.gen_range(-1.0..=1.0);
@@ -99,6 +91,25 @@ impl Asteroid {
         Ok(())
     }
 
+    pub fn get_spawn_position(rng: &mut ThreadRng, radius: f32) -> Vec2 {
+        let position: Vec2;
+
+        if rng.gen_bool(0.5) {          // Spawn to the left or right.
+            if rng.gen_bool(0.5) {      // Spawn left
+                position = Vec2::new(-radius, rng.gen_range(0.0..=SCREEN_SIZE.y));
+            } else {                       // Spawn right
+                position = Vec2::new(SCREEN_SIZE.x + radius, rng.gen_range(0.0..=SCREEN_SIZE.y));
+            }
+        } else {                           // Spawn top or bottom.
+            if rng.gen_bool(0.5) {      // Spawn top
+                position = Vec2::new(rng.gen_range(0.0..=SCREEN_SIZE.x), -SCREEN_SIZE.y - radius);
+            } else {                       // Spawn bottom
+                position = Vec2::new(rng.gen_range(0.0..=SCREEN_SIZE.x), SCREEN_SIZE.y + radius);
+            }
+        }
+        return position;
+    }
+
     pub fn move_forward(&mut self, ctx: &Context, dt: f32) -> Result<(), GameError> {
         self.position.x = self.position.x + self.forward.x * self.speed * dt;
         self.position.y = self.position.y + self.forward.y * self.speed * dt;
@@ -130,14 +141,13 @@ impl Asteroid {
         }
     }
 
-    pub fn destroy_asteroid(&mut self, ctx: &Context) -> Vec<Asteroid> {
+    pub fn destroy_asteroid(&mut self, ctx: &Context, rng: &mut ThreadRng) -> Vec<Asteroid> {
         let mut new_asteroids: Vec<Asteroid> = Vec::new();
-        let mut rng: ThreadRng = rand::thread_rng();
-        let asteroid_pieces: i32 = rng.gen_range(2..4); // 2 or 3 pieces.
+        let asteroid_pieces: i32 = rng.gen_range(2..=3);
 
         if self.radius != ASTEROID_SMALL_RADIUS {
             for _ in 0..asteroid_pieces {
-                new_asteroids.push(Asteroid::new_smaller(ctx, self.radius, self.position.x, self.position.y));
+                new_asteroids.push(Asteroid::new_smaller(ctx, rng, self.radius, self.position.x, self.position.y));
             }
         }
         self.destroyed = true;

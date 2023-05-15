@@ -16,8 +16,7 @@ pub struct Particle {
 }
 
 impl Particle {
-    pub fn new(position: Vec2) -> Particle {
-        let mut rng: ThreadRng = rand::thread_rng();
+    pub fn new(rng: &mut ThreadRng, position: Vec2) -> Particle {
         let particle_size: f32 = rng.gen_range(3.0..=5.0);
 
         let rect = Rect::new(
@@ -53,12 +52,12 @@ impl Particle {
         Ok(())
     }
 
-    pub fn create_particle_effect(position: Vec2) -> Vec<Particle> {
+    pub fn create_particle_effect(rng: &mut ThreadRng, position: Vec2) -> Vec<Particle> {
         let mut particles: Vec<Particle> = Vec::new();
 
-        for _ in 0..4 {
+        for _ in 0..rng.gen_range(3..=5) {
             particles.push(
-                Particle::new(position)
+                Particle::new(rng, position)
             )
         }
         return particles;

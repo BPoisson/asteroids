@@ -13,6 +13,7 @@ use ggez::conf::{WindowMode, WindowSetup};
 use ggez::glam::Vec2;
 use ggez::graphics::{Canvas, Color};
 use ggez::input::keyboard::{KeyCode, KeyInput};
+use rand::rngs::ThreadRng;
 use crate::asteroid::Asteroid;
 use crate::constants::{SCREEN_SIZE};
 use crate::particle::Particle;
@@ -28,15 +29,20 @@ struct GameState {
     projectiles: Vec<Projectile>,
     particles: Vec<Particle>,
     input_set: HashSet<KeyCode>,
-    last_update: Instant
+    last_update: Instant,
+    rng: ThreadRng,
+    last_asteroid_instant: Instant
 }
 
 impl GameState {
     fn new(ctx: &Context) -> Self {
+        let mut rng: ThreadRng = rand::thread_rng();
+        let now: Instant = Instant::now();
+
         let mut asteroids: Vec<Asteroid> = Vec::new();
 
         for _ in 0..4 {
-            asteroids.push(Asteroid::new(ctx));
+            asteroids.push(Asteroid::new(ctx, &mut rng));
         }
 
         GameState {
@@ -45,14 +51,18 @@ impl GameState {
             projectiles: Vec::new(),
             particles: Vec::new(),
             input_set: HashSet::new(),
-            last_update: Instant::now()
+            last_update: now,
+            rng,
+            last_asteroid_instant: now
+
         }
     }
 }
 
 impl event::EventHandler<GameError> for GameState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
-        let dt: f32 = (Instant::now() - self.last_update).as_secs_f32();
+        let now: Instant = Instant::now();
+        let dt: f32 = (now - self.last_update).as_secs_f32();
 
         for key in &self.input_set {
             match key {
@@ -92,7 +102,7 @@ impl event::EventHandler<GameError> for GameState {
             }
         }
 
-        let mut asteroid_pieces: Vec<Asteroid> = Vec::new();
+        let mut new_asteroids: Vec<Asteroid> = Vec::new();
         let mut new_particles: Vec<Particle> = Vec::new();
         // Handle projectile collision with asteroids.
         for i in 0..self.projectiles.len() {
@@ -101,9 +111,9 @@ impl event::EventHandler<GameError> for GameState {
                     if let Some(asteroid) = self.asteroids.get_mut(j) {
                         if collision::projectile_hit(projectile, asteroid) {
                             // Add to particle effect
-                            new_particles.append(&mut Particle::create_particle_effect(projectile.position));
+                            new_particles.append(&mut Particle::create_particle_effect(&mut self.rng, asteroid.position));
                             // Asteroid breaks into smaller pieces.
-                            asteroid_pieces.append(&mut asteroid.destroy_asteroid(ctx));
+                            new_asteroids.append(&mut asteroid.destroy_asteroid(ctx, &mut self.rng));
 
                             projectile.to_remove = true;
                         }
@@ -112,10 +122,17 @@ impl event::EventHandler<GameError> for GameState {
             }
         }
 
+        // Spawn another asteroid
+        if self.asteroids.len() < 3 || (now - self.last_asteroid_instant).as_secs_f32() > 8.0 {
+            new_asteroids.push(Asteroid::new(ctx, &mut self.rng));
+            self.last_asteroid_instant = now;
+        }
+
         self.projectiles.retain(|p| !p.to_remove);
         self.asteroids.retain(|a| !a.destroyed);
-        self.asteroids.append(&mut asteroid_pieces);
         self.particles.retain(|p| !p.expired);
+
+        self.asteroids.append(&mut new_asteroids);
         self.particles.append(&mut new_particles);
 
         self.last_update = Instant::now();
