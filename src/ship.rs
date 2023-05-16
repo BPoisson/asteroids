@@ -4,7 +4,7 @@ use ggez::graphics::{Canvas, Color, DrawMode, DrawParam, Mesh};
 use crate::{SCREEN_SIZE};
 use crate::projectile::{Projectile};
 
-pub const FRICTION: f32 = 0.25;
+pub const FRICTION: f32 = 0.30;
 
 pub struct Ship {
     pub triangle_mesh: Mesh,
@@ -50,8 +50,8 @@ impl Ship {
     }
 
     pub fn apply_thrust(&mut self, dt: f32) -> () {
-        self.thrust.x += self.forward.x * dt;
-        self.thrust.y += self.forward.y * dt;
+        self.thrust.x += self.forward.x * 0.95 * dt;
+        self.thrust.y += self.forward.y * 0.95 * dt;
         self.clamp_thrust();
     }
 

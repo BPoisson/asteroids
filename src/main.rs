@@ -4,6 +4,7 @@ mod asteroid;
 mod constants;
 mod collision;
 mod particle;
+mod sounds;
 
 use std::collections::HashSet;
 use std::error::Error;
@@ -19,6 +20,7 @@ use crate::constants::{SCREEN_SIZE};
 use crate::particle::Particle;
 use crate::projectile::Projectile;
 use crate::ship::Ship;
+use crate::sounds::{Sounds};
 
 const GAME_ID: &str = "Asteroids";
 const AUTHOR: &str = "BPoisson";
@@ -31,7 +33,8 @@ struct GameState {
     input_set: HashSet<KeyCode>,
     last_update: Instant,
     rng: ThreadRng,
-    last_asteroid_instant: Instant
+    last_asteroid_instant: Instant,
+    sounds: Sounds
 }
 
 impl GameState {
@@ -53,8 +56,8 @@ impl GameState {
             input_set: HashSet::new(),
             last_update: now,
             rng,
-            last_asteroid_instant: now
-
+            last_asteroid_instant: now,
+            sounds: Sounds::new(ctx)
         }
     }
 }
@@ -122,6 +125,8 @@ impl event::EventHandler<GameError> for GameState {
                             new_asteroids.append(&mut asteroid.destroy_asteroid(ctx, &mut self.rng));
 
                             projectile.to_remove = true;
+
+                            self.sounds.play_asteroid_break_sound(ctx, &asteroid.size);
                         }
                     }
                 }
@@ -168,10 +173,14 @@ impl event::EventHandler<GameError> for GameState {
 
     fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, _repeated: bool) -> Result<(), GameError> {
         if let Some(key) = input.keycode {
-            if key == KeyCode::Space && !self.input_set.contains(&key) {
+            if key == KeyCode::Up {
+                self.sounds.play_thrust_sound(ctx);
+            } else if key == KeyCode::Space && !self.input_set.contains(&key) {
                 let projectile: Projectile = self.ship.shoot(ctx);
 
                 self.projectiles.push(projectile);
+
+                self.sounds.play_shoot_sound(ctx);
             }
             self.input_set.insert(key);
         }
@@ -179,9 +188,13 @@ impl event::EventHandler<GameError> for GameState {
         Ok(())
     }
 
-    fn key_up_event(&mut self, _ctx: &mut Context, input: KeyInput) -> Result<(), GameError> {
+    fn key_up_event(&mut self, ctx: &mut Context, input: KeyInput) -> Result<(), GameError> {
         if let Some(key) = input.keycode {
             self.input_set.remove(&key);
+
+            if key == KeyCode::Up {
+                self.sounds.stop_thrust_sound(ctx);
+            }
         }
 
         Ok(())
@@ -192,6 +205,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (ctx, event_loop) = ContextBuilder::new(GAME_ID, AUTHOR)
         .window_setup(WindowSetup::default().title(GAME_ID))
         .window_mode(WindowMode::default().dimensions(SCREEN_SIZE.x, SCREEN_SIZE.y))
+        .add_resource_path("resources")
         .build()?;
 
     let game_state: GameState = GameState::new(&ctx);

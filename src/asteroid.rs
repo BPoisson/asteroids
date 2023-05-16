@@ -6,20 +6,27 @@ use rand::rngs::ThreadRng;
 use crate::constants::SCREEN_SIZE;
 
 pub const ASTEROID_BIG_RADIUS: f32 = 80.0;
-pub const ASTEROID_MED_RADIUS: f32 = 50.0;
+pub const ASTEROID_MEDIUM_RADIUS: f32 = 50.0;
 pub const ASTEROID_SMALL_RADIUS: f32 = 30.0;
 
 pub const ASTEROID_BIG_SPEED: f32 = 100.0;
-pub const ASTEROID_MED_SPEED: f32 = 200.0;
+pub const ASTEROID_MEDIUM_SPEED: f32 = 200.0;
 pub const ASTEROID_SMALL_SPEED: f32 = 300.0;
 
+pub enum AsteroidSize {
+    BIG,
+    MEDIUM,
+    SMALL
+}
+
 pub struct Asteroid {
-    pub circle_mesh: Mesh,
+    circle_mesh: Mesh,
     pub position: Vec2,
-    pub forward: Vec2,
     pub radius: f32,
-    pub tolerance: f32,
-    pub speed: f32,
+    forward: Vec2,
+    pub size: AsteroidSize,
+    tolerance: f32,
+    speed: f32,
     pub destroyed: bool
 }
 
@@ -43,15 +50,18 @@ impl Asteroid {
         return Asteroid {
             circle_mesh,
             position,
-            forward,
             radius: ASTEROID_BIG_RADIUS,
+            forward,
+            size: AsteroidSize::BIG,
             tolerance,
             speed: ASTEROID_BIG_SPEED,
             destroyed: false
         }
     }
 
-    pub fn new_smaller(ctx: &Context, rng: &mut ThreadRng, parent_radius: f32, parent_x: f32, parent_y: f32) -> Self {
+    pub fn new_smaller(self: &mut Self, ctx: &Context, rng: &mut ThreadRng) -> Self {
+        let parent_x: f32 = self.position.x;
+        let parent_y: f32 = self.position.y;
         let x_pos: f32 = rng.gen_range(parent_x - 20.0..parent_x + 20.0);
         let y_pos: f32 = rng.gen_range(parent_y - 20.0..parent_y + 20.0);
         let x_dir: f32 = rng.gen_range(-1.0..=1.0);
@@ -59,8 +69,9 @@ impl Asteroid {
         let position:Vec2 = Vec2::new(x_pos, y_pos);
         let forward:Vec2 = Vec2::new(x_dir, y_dir);
         let tolerance: f32 = rng.gen_range(0.0..5.0);
-        let radius: f32 = Asteroid::next_radius(parent_radius);
-        let speed: f32 = Asteroid::speed_for_radius(parent_radius);
+        let size: AsteroidSize = Asteroid::next_size(&self.size);
+        let radius: f32 = Asteroid::radius_for_size(&size);
+        let speed: f32 = Asteroid::speed_for_size(&size);
 
         let circle_mesh: Mesh = Mesh::new_circle(
             ctx,
@@ -74,8 +85,9 @@ impl Asteroid {
         return Asteroid {
             circle_mesh,
             position,
-            forward,
             radius,
+            forward,
+            size,
             tolerance,
             speed,
             destroyed: false
@@ -143,7 +155,7 @@ impl Asteroid {
 
         if self.radius != ASTEROID_SMALL_RADIUS {
             for _ in 0..asteroid_pieces {
-                new_asteroids.push(Asteroid::new_smaller(ctx, rng, self.radius, self.position.x, self.position.y));
+                new_asteroids.push(Asteroid::new_smaller(self, ctx, rng));
             }
         }
         self.destroyed = true;
@@ -151,23 +163,26 @@ impl Asteroid {
         return new_asteroids;
     }
 
-    fn next_radius(radius: f32) -> f32 {
-        if radius == ASTEROID_BIG_RADIUS {
-            return ASTEROID_MED_RADIUS;
-        } else if radius == ASTEROID_MED_RADIUS {
-            return ASTEROID_SMALL_RADIUS;
-        } else {
-            return 0.0;
+    fn next_size(size: &AsteroidSize) -> AsteroidSize {
+        match size {
+            AsteroidSize::BIG => AsteroidSize::MEDIUM,
+            _ => AsteroidSize::SMALL
         }
     }
 
-    fn speed_for_radius(radius: f32) -> f32 {
-        if radius == ASTEROID_BIG_RADIUS {
-            return ASTEROID_BIG_SPEED;
-        } else if radius == ASTEROID_MED_RADIUS {
-            return ASTEROID_MED_SPEED;
-        } else {
-            return ASTEROID_SMALL_SPEED;
+    fn radius_for_size(size: &AsteroidSize) -> f32 {
+        match size {
+            AsteroidSize::BIG => ASTEROID_BIG_RADIUS,
+            AsteroidSize::MEDIUM => ASTEROID_MEDIUM_RADIUS,
+            _ => ASTEROID_SMALL_RADIUS
+        }
+    }
+
+    fn speed_for_size(size: &AsteroidSize) -> f32 {
+        match size {
+            AsteroidSize::BIG => ASTEROID_BIG_SPEED,
+            AsteroidSize::MEDIUM => ASTEROID_MEDIUM_SPEED,
+            _ => ASTEROID_SMALL_SPEED
         }
     }
 }
