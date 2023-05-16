@@ -1,5 +1,5 @@
 use std::time::{Instant};
-use ggez::{GameError, graphics};
+use ggez::{graphics};
 use ggez::glam::Vec2;
 use ggez::graphics::{Canvas, Color, Rect};
 use rand::Rng;
@@ -16,7 +16,7 @@ pub struct Particle {
 }
 
 impl Particle {
-    pub fn new(rng: &mut ThreadRng, position: Vec2) -> Particle {
+    pub fn new(rng: &mut ThreadRng, position: Vec2) -> Self {
         let particle_size: f32 = rng.gen_range(3.0..=5.0);
 
         let rect = Rect::new(
@@ -35,24 +35,20 @@ impl Particle {
         }
     }
 
-    pub fn draw(&self, canvas: &mut Canvas) -> Result<(), GameError> {
+    pub fn draw(&self, canvas: &mut Canvas) -> () {
         canvas.draw(
             &graphics::Quad,
             graphics::DrawParam::new()
                 .dest_rect(self.rect)
                 .color(Color::WHITE));
-
-        Ok(())
     }
 
-    pub fn move_forward(&mut self, dt: f32) -> Result<(), GameError> {
+    pub fn move_forward(&mut self, dt: f32) -> () {
         self.rect.x += self.forward.x * PARTICLE_SPEED * dt;
         self.rect.y += self.forward.y * PARTICLE_SPEED * dt;
-
-        Ok(())
     }
 
-    pub fn create_particle_effect(rng: &mut ThreadRng, position: Vec2) -> Vec<Particle> {
+    pub fn create_particle_effect(rng: &mut ThreadRng, position: Vec2) -> Vec<Self> {
         let mut particles: Vec<Particle> = Vec::new();
 
         for _ in 0..rng.gen_range(3..=5) {
@@ -63,9 +59,7 @@ impl Particle {
         return particles;
     }
 
-    pub fn check_expiration(&mut self, now_time: Instant) -> Result<(), GameError> {
+    pub fn check_expiration(&mut self, now_time: Instant) -> () {
         self.expired = (now_time - self.creation_time).as_secs_f32() > PARTICLE_DURATION_SECS;
-
-        Ok(())
     }
 }

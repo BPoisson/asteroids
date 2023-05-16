@@ -67,8 +67,7 @@ impl event::EventHandler<GameError> for GameState {
         for key in &self.input_set {
             match key {
                 KeyCode::Up => {
-                    self.ship.move_forward(dt);
-                    self.ship.clamp();
+                    self.ship.apply_thrust(dt);
                 }
                 KeyCode::Left => {
                     self.ship.rotate(-270_f32.to_radians(), dt);
@@ -79,26 +78,33 @@ impl event::EventHandler<GameError> for GameState {
                 _ => ()
             }
         }
+
+        // Ship updates.
+        self.ship.move_forward(dt);
+        if !self.input_set.contains(&KeyCode::Up) {
+            self.ship.apply_friction(dt);
+        }
+
         // Projectile updates.
         for i in 0..self.projectiles.len() {
             if let Some(projectile) = self.projectiles.get_mut(i) {
-                projectile.move_forward(ctx, dt)?;
-                projectile.set_out_of_bounds()?;
+                projectile.move_forward(ctx, dt);
+                projectile.set_out_of_bounds();
             }
         }
 
         // Asteroid updates
         for i in 0..self.asteroids.len() {
             if let Some(asteroid) = self.asteroids.get_mut(i) {
-                asteroid.move_forward(ctx, dt)?;
+                asteroid.move_forward(ctx, dt);
             }
         }
 
         // Particle updates
         for i in 0..self.asteroids.len() {
             if let Some(particle) = self.particles.get_mut(i) {
-                particle.move_forward(dt)?;
-                particle.check_expiration(Instant::now())?;
+                particle.move_forward(dt);
+                particle.check_expiration(Instant::now());
             }
         }
 
@@ -142,18 +148,18 @@ impl event::EventHandler<GameError> for GameState {
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas: Canvas = Canvas::from_frame(ctx, Color::BLACK);
 
-        self.ship.draw(ctx, &mut canvas)?;
+        self.ship.draw(ctx, &mut canvas);
 
         for projectile in &mut self.projectiles {
-            projectile.draw(&mut canvas)?;
+            projectile.draw(&mut canvas);
         }
 
         for asteroid in &mut self.asteroids {
-            asteroid.draw(&mut canvas)?;
+            asteroid.draw(&mut canvas);
         }
 
         for particle in &mut self.particles {
-            particle.draw(&mut canvas)?;
+            particle.draw(&mut canvas);
         }
 
         canvas.finish(ctx)?;

@@ -1,4 +1,4 @@
-use ggez::{Context, GameError, graphics};
+use ggez::{Context, graphics};
 use ggez::graphics::{Canvas, Color, Mesh};
 use crate::{Vec2};
 use crate::constants::SCREEN_SIZE;
@@ -36,16 +36,14 @@ impl Projectile {
         }
     }
 
-    pub fn draw(&self, canvas: &mut Canvas) -> Result<(), GameError> {
+    pub fn draw(&self, canvas: &mut Canvas) -> () {
         canvas.draw(
             &self.circle_mesh,
             graphics::DrawParam::default()
         );
-
-        Ok(())
     }
 
-    pub fn move_forward(&mut self, ctx: &Context, dt: f32) -> Result<(), GameError> {
+    pub fn move_forward(&mut self, ctx: &Context, dt: f32) -> () {
         self.position.x = self.position.x + self.forward.x * self.speed * dt;
         self.position.y = self.position.y + self.forward.y * self.speed * dt;
 
@@ -57,11 +55,9 @@ impl Projectile {
             2.0,
             Color::WHITE
         ).unwrap();
-
-        Ok(())
     }
 
-    pub fn set_out_of_bounds(&mut self) -> Result<(), GameError> {
+    pub fn set_out_of_bounds(&mut self) -> () {
         if self.position.x < 0.0
             || self.position.y <0.0
             || self.position.x > SCREEN_SIZE.x
@@ -69,6 +65,5 @@ impl Projectile {
 
             self.to_remove = true;
         }
-        Ok(())
     }
 }

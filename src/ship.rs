@@ -1,14 +1,17 @@
-use ggez::{Context, GameError};
+use ggez::{Context};
 use ggez::glam::{Vec2};
 use ggez::graphics::{Canvas, Color, DrawMode, DrawParam, Mesh};
 use crate::{SCREEN_SIZE};
 use crate::projectile::{Projectile};
+
+pub const FRICTION: f32 = 0.25;
 
 pub struct Ship {
     pub triangle_mesh: Mesh,
     pub position: Vec2,
     pub rotation: f32,
     pub forward: Vec2,
+    pub thrust: Vec2,
     pub speed: f32,
     pub lives: i32
 }
@@ -24,12 +27,13 @@ impl Ship {
             position,
             rotation,
             forward: Vec2::new(0.0, -1.0),
+            thrust: Vec2::new(0.0, 0.0),
             speed: 500.0,
             lives: 4
         }
     }
 
-    pub fn draw(&mut self, ctx: &Context, canvas: &mut Canvas) -> Result<(), GameError> {
+    pub fn draw(&mut self, ctx: &Context, canvas: &mut Canvas) -> () {
         let triangle_points: [Vec2; 3] = Ship::get_triangle_points(self.position, self.rotation);
 
         self.triangle_mesh = Mesh::new_polygon(
@@ -37,19 +41,38 @@ impl Ship {
             DrawMode::stroke(2.0),
             &triangle_points,
             Color::WHITE
-        )?;
+        ).unwrap();
 
         canvas.draw(
             &self.triangle_mesh,
             DrawParam::default()
         );
+    }
 
-        Ok(())
+    pub fn apply_thrust(&mut self, dt: f32) -> () {
+        self.thrust.x += self.forward.x * dt;
+        self.thrust.y += self.forward.y * dt;
+        self.clamp_thrust();
+    }
+
+    pub fn apply_friction(&mut self, dt: f32) -> () {
+        if self.thrust.x > 0.0 {
+            self.thrust.x -= FRICTION * dt;
+        } else if self.thrust.x < 0.0 {
+            self.thrust.x += FRICTION * dt;
+        }
+
+        if self.thrust.y > 0.0 {
+            self.thrust.y -= FRICTION * dt;
+        } else if self.thrust.y < 0.0 {
+            self.thrust.y += FRICTION * dt;
+        }
     }
 
     pub fn move_forward(&mut self, dt: f32) -> () {
-        self.position.x += self.forward.x * self.speed * dt;
-        self.position.y += self.forward.y * self.speed * dt;
+        self.position.x += self.thrust.x * self.speed * dt;
+        self.position.y += self.thrust.y * self.speed * dt;
+        self.clamp_position();
     }
 
     pub fn rotate(&mut self, radians: f32, dt: f32) -> () {
@@ -68,7 +91,20 @@ impl Ship {
         );
     }
 
-    pub fn clamp(&mut self) -> () {
+    pub fn clamp_thrust(&mut self) -> () {
+        if self.thrust.x > 1.0 {
+            self.thrust.x = 1.0;
+        } else if self.thrust.x < -1.0 {
+            self.thrust.x = -1.0;
+        }
+        if self.thrust.y > 1.0 {
+            self.thrust.y = 1.0;
+        } else if self.thrust.y < -1.0 {
+            self.thrust.y = -1.0;
+        }
+    }
+
+    pub fn clamp_position(&mut self) -> () {
         if self.position.x < 0.0 {
             self.position.x = SCREEN_SIZE.x;
         } else if self.position.x > SCREEN_SIZE.x {

@@ -1,4 +1,4 @@
-use ggez::{Context, GameError, graphics};
+use ggez::{Context, graphics};
 use ggez::glam::Vec2;
 use ggez::graphics::{Canvas, Color, Mesh};
 use rand::Rng;
@@ -82,13 +82,11 @@ impl Asteroid {
         }
     }
 
-    pub fn draw(&self, canvas: &mut Canvas) -> Result<(), GameError> {
+    pub fn draw(&self, canvas: &mut Canvas) -> () {
         canvas.draw(
             &self.circle_mesh,
             graphics::DrawParam::default()
         );
-
-        Ok(())
     }
 
     pub fn get_spawn_position(rng: &mut ThreadRng, radius: f32) -> Vec2 {
@@ -110,7 +108,7 @@ impl Asteroid {
         return position;
     }
 
-    pub fn move_forward(&mut self, ctx: &Context, dt: f32) -> Result<(), GameError> {
+    pub fn move_forward(&mut self, ctx: &Context, dt: f32) -> () {
         self.position.x = self.position.x + self.forward.x * self.speed * dt;
         self.position.y = self.position.y + self.forward.y * self.speed * dt;
 
@@ -123,9 +121,7 @@ impl Asteroid {
             self.radius,
             self.tolerance,
             Color::WHITE
-        )?;
-
-        Ok(())
+        ).unwrap();
     }
 
     pub fn clamp(&mut self) -> () {
