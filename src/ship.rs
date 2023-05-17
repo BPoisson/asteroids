@@ -1,17 +1,21 @@
 use ggez::{Context};
 use ggez::glam::{Vec2};
 use ggez::graphics::{Canvas, Color, DrawMode, DrawParam, Mesh};
+use rand::Rng;
+use rand::rngs::ThreadRng;
 use crate::{SCREEN_SIZE};
 use crate::projectile::{Projectile};
 
-pub const FRICTION: f32 = 0.30;
+pub const FRICTION: f32 = 0.35;
 
 pub struct Ship {
     pub triangle_mesh: Mesh,
+    pub exhaust_mesh: Mesh,
     pub position: Vec2,
     pub rotation: f32,
     pub forward: Vec2,
     pub thrust: Vec2,
+    pub thrusting: bool,
     pub speed: f32,
     pub lives: i32
 }
@@ -21,19 +25,22 @@ impl Ship {
         let position: Vec2 = Vec2::new(SCREEN_SIZE.x / 2.0, SCREEN_SIZE.y / 2.0);
         let rotation: f32 = 270.0_f32.to_radians();
         let triangle_mesh: Mesh = Ship::create_ship_triangle(ctx, position, rotation);
+        let exhaust_mesh: Mesh = Ship::create_exhaust(ctx, position, rotation);
 
         return Ship {
             triangle_mesh,
+            exhaust_mesh,
             position,
             rotation,
             forward: Vec2::new(0.0, -1.0),
             thrust: Vec2::new(0.0, 0.0),
+            thrusting: false,
             speed: 500.0,
             lives: 4
         }
     }
 
-    pub fn draw(&mut self, ctx: &Context, canvas: &mut Canvas) -> () {
+    pub fn draw(&mut self, ctx: &Context, canvas: &mut Canvas, rng: &mut ThreadRng) -> () {
         let triangle_points: [Vec2; 3] = Ship::get_triangle_points(self.position, self.rotation);
 
         self.triangle_mesh = Mesh::new_polygon(
@@ -47,6 +54,23 @@ impl Ship {
             &self.triangle_mesh,
             DrawParam::default()
         );
+
+        // Only draw exhaust when thrusting and only 50% of frames.
+        if self.thrusting && rng.gen_range(0..=1) == 1{
+            let exhaust_points: [Vec2; 7] = Ship::get_exhaust_points(self.position, self.rotation);
+
+            self.exhaust_mesh = Mesh::new_polygon(
+                ctx,
+                DrawMode::stroke(2.0),
+                &exhaust_points,
+                Color::WHITE
+            ).unwrap();
+
+            canvas.draw(
+                &self.exhaust_mesh,
+                DrawParam::default()
+            );
+        }
     }
 
     pub fn apply_thrust(&mut self, dt: f32) -> () {
@@ -128,15 +152,38 @@ impl Ship {
         ).unwrap();
     }
 
+    fn create_exhaust(ctx: &Context, position: Vec2, rotation: f32) -> Mesh {
+        let exhaust_points: [Vec2; 7] = Ship::get_exhaust_points(position, rotation);
+
+        return Mesh::new_polygon(
+            ctx,
+            DrawMode::stroke(2.0),
+            &exhaust_points,
+            Color::WHITE
+        ).unwrap();
+    }
+
     fn get_triangle_points(position: Vec2, rotation: f32) -> [Vec2; 3] {
         return [
-            position + Ship::rotate_triangle_point(Vec2::new(-20.0, -25.0), rotation - 90.0_f32.to_radians()),
-            position + Ship::rotate_triangle_point(Vec2::new(20.0, -25.0), rotation - 90.0_f32.to_radians()),
-            position + Ship::rotate_triangle_point(Vec2::new(0.0, 25.0), rotation - 90.0_f32.to_radians()),
+            position + Ship::rotate_point(Vec2::new(-20.0, -25.0), rotation - 90.0_f32.to_radians()),
+            position + Ship::rotate_point(Vec2::new(20.0, -25.0), rotation - 90.0_f32.to_radians()),
+            position + Ship::rotate_point(Vec2::new(0.0, 25.0), rotation - 90.0_f32.to_radians()),
         ];
     }
 
-    fn rotate_triangle_point(triangle_point: Vec2, rotation: f32) -> Vec2 {
+    fn get_exhaust_points(position: Vec2, rotation: f32) -> [Vec2; 7] {
+        return [
+            position + Ship::rotate_point(Vec2::new(-10.0, -25.0), rotation - 90.0_f32.to_radians()),
+            position + Ship::rotate_point(Vec2::new(-10.0, -35.0), rotation - 90.0_f32.to_radians()),
+            position + Ship::rotate_point(Vec2::new(-5.0, -30.0), rotation - 90.0_f32.to_radians()),
+            position + Ship::rotate_point(Vec2::new(0.0, -50.0), rotation - 90.0_f32.to_radians()),
+            position + Ship::rotate_point(Vec2::new(5.0, -30.0), rotation - 90.0_f32.to_radians()),
+            position + Ship::rotate_point(Vec2::new(10.0, -35.0), rotation - 90.0_f32.to_radians()),
+            position + Ship::rotate_point(Vec2::new(10.0, -25.0), rotation - 90.0_f32.to_radians()),
+        ];
+    }
+
+    fn rotate_point(triangle_point: Vec2, rotation: f32) -> Vec2 {
         let rotation_sin: f32 = rotation.sin();
         let rotation_cos: f32 = rotation.cos();
         let x_rotation: f32 = triangle_point.x * rotation_cos - triangle_point.y * rotation_sin;

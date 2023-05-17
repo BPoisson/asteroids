@@ -153,7 +153,7 @@ impl event::EventHandler<GameError> for GameState {
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas: Canvas = Canvas::from_frame(ctx, Color::BLACK);
 
-        self.ship.draw(ctx, &mut canvas);
+        self.ship.draw(ctx, &mut canvas, &mut self.rng);
 
         for projectile in &mut self.projectiles {
             projectile.draw(&mut canvas);
@@ -174,6 +174,7 @@ impl event::EventHandler<GameError> for GameState {
     fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, _repeated: bool) -> Result<(), GameError> {
         if let Some(key) = input.keycode {
             if key == KeyCode::Up {
+                self.ship.thrusting = true;
                 self.sounds.play_thrust_sound(ctx);
             } else if key == KeyCode::Space && !self.input_set.contains(&key) {
                 let projectile: Projectile = self.ship.shoot(ctx);
@@ -193,6 +194,7 @@ impl event::EventHandler<GameError> for GameState {
             self.input_set.remove(&key);
 
             if key == KeyCode::Up {
+                self.ship.thrusting = false;
                 self.sounds.stop_thrust_sound(ctx);
             }
         }
