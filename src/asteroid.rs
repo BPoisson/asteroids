@@ -13,6 +13,7 @@ pub const ASTEROID_BIG_SPEED: f32 = 100.0;
 pub const ASTEROID_MEDIUM_SPEED: f32 = 200.0;
 pub const ASTEROID_SMALL_SPEED: f32 = 300.0;
 
+#[derive(Copy, Clone)]
 pub enum AsteroidSize {
     BIG,
     MEDIUM,

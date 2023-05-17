@@ -5,6 +5,7 @@ mod constants;
 mod collision;
 mod particle;
 mod sounds;
+mod score;
 
 use std::collections::HashSet;
 use std::error::Error;
@@ -15,10 +16,11 @@ use ggez::glam::Vec2;
 use ggez::graphics::{Canvas, Color};
 use ggez::input::keyboard::{KeyCode, KeyInput};
 use rand::rngs::ThreadRng;
-use crate::asteroid::Asteroid;
+use crate::asteroid::{Asteroid};
 use crate::constants::{SCREEN_SIZE};
 use crate::particle::Particle;
 use crate::projectile::Projectile;
+use crate::score::Score;
 use crate::ship::Ship;
 use crate::sounds::{Sounds};
 
@@ -30,6 +32,7 @@ struct GameState {
     asteroids: Vec<Asteroid>,
     projectiles: Vec<Projectile>,
     particles: Vec<Particle>,
+    score: Score,
     input_set: HashSet<KeyCode>,
     last_update: Instant,
     rng: ThreadRng,
@@ -53,6 +56,7 @@ impl GameState {
             asteroids,
             projectiles: Vec::new(),
             particles: Vec::new(),
+            score: Score::new(),
             input_set: HashSet::new(),
             last_update: now,
             rng,
@@ -113,6 +117,7 @@ impl event::EventHandler<GameError> for GameState {
 
         let mut new_asteroids: Vec<Asteroid> = Vec::new();
         let mut new_particles: Vec<Particle> = Vec::new();
+
         // Handle projectile collision with asteroids.
         for i in 0..self.projectiles.len() {
             if let Some(projectile) = self.projectiles.get_mut(i) {
@@ -125,6 +130,8 @@ impl event::EventHandler<GameError> for GameState {
                             new_asteroids.append(&mut asteroid.destroy_asteroid(ctx, &mut self.rng));
 
                             projectile.to_remove = true;
+
+                            self.score.update_score(asteroid.size);
 
                             self.sounds.play_asteroid_break_sound(ctx, &asteroid.size);
                         }
@@ -166,6 +173,8 @@ impl event::EventHandler<GameError> for GameState {
         for particle in &mut self.particles {
             particle.draw(&mut canvas);
         }
+
+        self.score.draw(&mut canvas);
 
         canvas.finish(ctx)?;
         Ok(())
