@@ -27,12 +27,20 @@ impl Score {
         );
     }
 
-    pub fn update_score(&mut self, destroyed_asteroid_size: AsteroidSize) -> () {
+    pub fn update_score_asteroid(&mut self, destroyed_asteroid_size: &AsteroidSize) -> () {
         match destroyed_asteroid_size {
-            AsteroidSize::BIG => self.score = self.score + 250,
-            AsteroidSize::MEDIUM => self.score = self.score + 100,
-            _ => self.score = self.score + 25,
+            AsteroidSize::BIG => self.score = self.score + 20,
+            AsteroidSize::MEDIUM => self.score = self.score + 50,
+            _ => self.score = self.score + 100,
         }
+
+        let mut text: Text = Text::new(self.score.to_string());
+        text.set_scale(PxScale::from(SCORE_SCALE));
+        self.text = text;
+    }
+
+    pub fn update_score_alien(&mut self) -> () {
+        self.score = self.score + 100;
 
         let mut text: Text = Text::new(self.score.to_string());
         text.set_scale(PxScale::from(SCORE_SCALE));

@@ -13,7 +13,6 @@ pub const ASTEROID_BIG_SPEED: f32 = 100.0;
 pub const ASTEROID_MEDIUM_SPEED: f32 = 200.0;
 pub const ASTEROID_SMALL_SPEED: f32 = 300.0;
 
-#[derive(Copy, Clone)]
 pub enum AsteroidSize {
     BIG,
     MEDIUM,
@@ -121,7 +120,7 @@ impl Asteroid {
         return position;
     }
 
-    pub fn move_forward(&mut self, ctx: &Context, dt: f32) -> () {
+    pub fn move_forward(&mut self, ctx: &Context, dt: &f32) -> () {
         self.position.x = self.position.x + self.forward.x * self.speed * dt;
         self.position.y = self.position.y + self.forward.y * self.speed * dt;
 

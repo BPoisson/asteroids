@@ -43,7 +43,7 @@ impl Projectile {
         );
     }
 
-    pub fn move_forward(&mut self, ctx: &Context, dt: f32) -> () {
+    pub fn move_forward(&mut self, ctx: &Context, dt: &f32) -> () {
         self.position.x = self.position.x + self.forward.x * self.speed * dt;
         self.position.y = self.position.y + self.forward.y * self.speed * dt;
 

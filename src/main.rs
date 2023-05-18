@@ -6,6 +6,7 @@ mod collision;
 mod particle;
 mod sounds;
 mod score;
+mod alien;
 
 use std::collections::HashSet;
 use std::error::Error;
@@ -15,9 +16,11 @@ use ggez::conf::{WindowMode, WindowSetup};
 use ggez::glam::Vec2;
 use ggez::graphics::{Canvas, Color};
 use ggez::input::keyboard::{KeyCode, KeyInput};
+use rand::Rng;
 use rand::rngs::ThreadRng;
 use crate::asteroid::{Asteroid};
 use crate::constants::{SCREEN_SIZE};
+use crate::alien::{Alien};
 use crate::particle::Particle;
 use crate::projectile::Projectile;
 use crate::score::Score;
@@ -32,6 +35,7 @@ struct GameState {
     asteroids: Vec<Asteroid>,
     projectiles: Vec<Projectile>,
     particles: Vec<Particle>,
+    alien: Option<Alien>,
     score: Score,
     input_set: HashSet<KeyCode>,
     last_update: Instant,
@@ -56,6 +60,7 @@ impl GameState {
             asteroids,
             projectiles: Vec::new(),
             particles: Vec::new(),
+            alien: None,
             score: Score::new(),
             input_set: HashSet::new(),
             last_update: now,
@@ -74,28 +79,28 @@ impl event::EventHandler<GameError> for GameState {
         for key in &self.input_set {
             match key {
                 KeyCode::Up => {
-                    self.ship.apply_thrust(dt);
+                    self.ship.apply_thrust(&dt);
                 }
                 KeyCode::Left => {
-                    self.ship.rotate(-270_f32.to_radians(), dt);
+                    self.ship.rotate(-360_f32.to_radians(), &dt);
                 }
                 KeyCode::Right => {
-                    self.ship.rotate(270_f32.to_radians(), dt);
+                    self.ship.rotate(360_f32.to_radians(), &dt);
                 }
                 _ => ()
             }
         }
 
         // Ship updates.
-        self.ship.move_forward(dt);
+        self.ship.move_forward(&dt);
         if !self.input_set.contains(&KeyCode::Up) {
-            self.ship.apply_friction(dt);
+            self.ship.apply_friction(&dt);
         }
 
         // Projectile updates.
         for i in 0..self.projectiles.len() {
             if let Some(projectile) = self.projectiles.get_mut(i) {
-                projectile.move_forward(ctx, dt);
+                projectile.move_forward(ctx, &dt);
                 projectile.set_out_of_bounds();
             }
         }
@@ -103,16 +108,31 @@ impl event::EventHandler<GameError> for GameState {
         // Asteroid updates
         for i in 0..self.asteroids.len() {
             if let Some(asteroid) = self.asteroids.get_mut(i) {
-                asteroid.move_forward(ctx, dt);
+                asteroid.move_forward(ctx, &dt);
             }
         }
 
         // Particle updates
         for i in 0..self.asteroids.len() {
             if let Some(particle) = self.particles.get_mut(i) {
-                particle.move_forward(dt);
-                particle.check_expiration(Instant::now());
+                particle.move_forward(&dt);
+                particle.check_expiration(&Instant::now());
             }
+        }
+
+        // Alien updates
+        if let Some(alien) = &mut self.alien {
+            alien.move_forward(&mut self.rng, &dt);
+            alien.check_expiration(&Instant::now());
+
+            if alien.expired {
+                self.alien = None;
+                self.sounds.stop_alien_music(&ctx);
+            }
+        } else if self.rng.gen_range(0..=10000) == 1 {
+            // Random chance to spawn the alien if it does not exist.
+            self.alien = Some(Alien::new(&ctx, &mut self.rng));
+            self.sounds.play_alien_music(&ctx);
         }
 
         let mut new_asteroids: Vec<Asteroid> = Vec::new();
@@ -121,17 +141,32 @@ impl event::EventHandler<GameError> for GameState {
         // Handle projectile collision with asteroids.
         for i in 0..self.projectiles.len() {
             if let Some(projectile) = self.projectiles.get_mut(i) {
+                // Check Alien collisions.
+                if let Some(alien) = &mut self.alien {
+                    // Destroy alien and projectile when hit.
+                    if collision::projectile_alien_hit(projectile, alien) {
+                        new_particles.append(&mut Particle::create_particle_effect(&mut self.rng, &alien.position));
+
+                        projectile.to_remove = true;
+                        alien.expired = true;
+
+                        self.score.update_score_alien();
+                        self.sounds.play_alien_explosion(ctx);
+                        continue; // Skip this projectile as it has collided with an Alien.
+                    }
+                }
+                // Check Asteroid collisions.
                 for j in 0..self.asteroids.len() {
                     if let Some(asteroid) = self.asteroids.get_mut(j) {
-                        if collision::projectile_hit(projectile, asteroid) {
+                        if collision::projectile_asteroid_hit(projectile, asteroid) {
                             // Add to particle effect
-                            new_particles.append(&mut Particle::create_particle_effect(&mut self.rng, asteroid.position));
+                            new_particles.append(&mut Particle::create_particle_effect(&mut self.rng, &asteroid.position));
                             // Asteroid breaks into smaller pieces.
                             new_asteroids.append(&mut asteroid.destroy_asteroid(ctx, &mut self.rng));
 
                             projectile.to_remove = true;
 
-                            self.score.update_score(asteroid.size);
+                            self.score.update_score_asteroid(&asteroid.size);
 
                             self.sounds.play_asteroid_break_sound(ctx, &asteroid.size);
                         }
@@ -172,6 +207,10 @@ impl event::EventHandler<GameError> for GameState {
 
         for particle in &mut self.particles {
             particle.draw(&mut canvas);
+        }
+
+        if let Some(alien) = &mut self.alien {
+            alien.draw(ctx, &mut canvas);
         }
 
         self.score.draw(&mut canvas);

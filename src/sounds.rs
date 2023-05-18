@@ -15,6 +15,8 @@ impl Sounds {
         sounds.push(Source::new(ctx, "\\sounds\\big_explosion.wav").unwrap());
         sounds.push(Source::new(ctx, "\\sounds\\medium_explosion.wav").unwrap());
         sounds.push(Source::new(ctx, "\\sounds\\small_explosion.wav").unwrap());
+        sounds.push(Source::new(ctx, "\\sounds\\alien_explosion.wav").unwrap());
+        sounds.push(Source::new(ctx, "\\sounds\\alien_music.wav").unwrap());
 
         return Sounds {
             sounds
@@ -22,24 +24,24 @@ impl Sounds {
     }
 
     pub fn play_shoot_sound(&mut self, ctx: &Context) -> () {
-        if let Some(sound) = self.sounds.get_mut(0) {
-            sound.play_detached(ctx).unwrap();
+        if let Some(shoot_sound) = self.sounds.get_mut(0) {
+            shoot_sound.play_detached(ctx).unwrap();
         }
     }
 
     pub fn play_thrust_sound(&mut self, ctx: &Context) -> () {
-        if let Some(sound) = self.sounds.get_mut(1) {
-            if !sound.playing() {
-                sound.play(ctx).unwrap();
-                sound.set_repeat(true);
+        if let Some(thrust_sound) = self.sounds.get_mut(1) {
+            if !thrust_sound.playing() {
+                thrust_sound.play(ctx).unwrap();
+                thrust_sound.set_repeat(true);
             }
         }
     }
 
     pub fn stop_thrust_sound(&mut self, ctx: &Context) -> () {
-        if let Some(sound) = self.sounds.get_mut(1) {
-            if sound.playing() {
-                sound.stop(ctx).unwrap();
+        if let Some(thrust_sound) = self.sounds.get_mut(1) {
+            if thrust_sound.playing() {
+                thrust_sound.stop(ctx).unwrap();
             }
         }
     }
@@ -47,19 +49,40 @@ impl Sounds {
     pub fn play_asteroid_break_sound(&mut self, ctx: &Context, size: &AsteroidSize) -> () {
         match size {
             AsteroidSize::BIG => {
-                if let Some(sound) = self.sounds.get_mut(2) {
-                    sound.play_detached(ctx).unwrap();
+                if let Some(asteroid_big_sound) = self.sounds.get_mut(2) {
+                    asteroid_big_sound.play_detached(ctx).unwrap();
                 }
             },
             AsteroidSize::MEDIUM => {
-                if let Some(sound) = self.sounds.get_mut(3) {
-                    sound.play_detached(ctx).unwrap();
+                if let Some(asteroid_medium_sound) = self.sounds.get_mut(3) {
+                    asteroid_medium_sound.play_detached(ctx).unwrap();
                 }
             },
             _ => {
-                if let Some(sound) = self.sounds.get_mut(4) {
-                    sound.play_detached(ctx).unwrap();
+                if let Some(asteroid_small_sound) = self.sounds.get_mut(4) {
+                    asteroid_small_sound.play_detached(ctx).unwrap();
                 }
+            }
+        }
+    }
+
+    pub fn play_alien_explosion(&mut self, ctx: &Context) -> () {
+        if let Some(alien_explosion) = self.sounds.get_mut(5) {
+            alien_explosion.play(ctx).unwrap();
+        }
+    }
+
+    pub fn play_alien_music(&mut self, ctx: &Context) -> () {
+        if let Some(alien_music) = self.sounds.get_mut(6) {
+            alien_music.play(ctx).unwrap();
+            alien_music.set_repeat(true);
+        }
+    }
+
+    pub fn stop_alien_music(&mut self, ctx: &Context) -> () {
+        if let Some(alien_music) = self.sounds.get_mut(6) {
+            if alien_music.playing() {
+                alien_music.stop(ctx).unwrap();
             }
         }
     }
