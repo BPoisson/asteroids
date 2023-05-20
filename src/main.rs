@@ -113,7 +113,7 @@ impl GameState {
                 self.alien = None;
 
                 self.sounds.stop_alien_music(ctx);
-                self.sounds.stop_alien_warning(ctx);
+                self.sounds.stop_alien_warning_sound(ctx);
             }
         }
     }
@@ -142,7 +142,7 @@ impl event::EventHandler<GameError> for GameState {
             if let Some(alien_projectile) = alien.shoot(ctx, &mut self.rng, &now) {
                 self.alien_projectiles.push(alien_projectile);
 
-                self.sounds.play_alien_shot(ctx);
+                self.sounds.play_alien_shoot_sound(ctx);
             }
         } else if self.spawn_alien {
             // Random chance to spawn the alien if it does not exist.
@@ -150,7 +150,7 @@ impl event::EventHandler<GameError> for GameState {
             self.spawn_alien = false;
 
             self.sounds.play_alien_music(ctx);
-            self.sounds.play_alien_warning(ctx);
+            self.sounds.play_alien_warning_sound(ctx);
         }
 
         // Player projectile updates.
@@ -253,7 +253,7 @@ impl event::EventHandler<GameError> for GameState {
 
                 self.player_projectiles.push(player_projectile);
 
-                self.sounds.play_shoot_sound(ctx);
+                self.sounds.play_player_shoot_sound(ctx);
             }
             self.input_set.insert(key);
         }

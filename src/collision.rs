@@ -33,7 +33,9 @@ pub fn handle_collisions(ctx: &Context,
                     if alien.health <= 0 {
                         alien.expired = true;
                         score.update_score_alien();
-                        sounds.play_alien_explosion(ctx);
+                        sounds.play_alien_explosion_sound(ctx);
+                    } else {
+                        sounds.play_alien_hit_sound(ctx);
                     }
                     continue; // Skip this projectile as it has collided with an Alien.
                 }
