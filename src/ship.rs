@@ -1,3 +1,4 @@
+use std::ops::Neg;
 use ggez::{Context};
 use ggez::glam::{Vec2};
 use ggez::graphics::{Canvas, Color, DrawMode, DrawParam, Mesh};
@@ -6,8 +7,14 @@ use rand::rngs::ThreadRng;
 use crate::{SCREEN_SIZE};
 use crate::projectile::{Projectile};
 
-pub const FRICTION: f32 = 0.35;
-pub const SPEED: f32 = 400.0;
+pub const FRICTION: f32 = 0.50;
+pub const SPEED: f32 = 500.0;
+pub const ROTATION_RADIANS: f32 = 360_f32;
+
+pub enum RotationDirection {
+    LEFT,
+    RIGHT
+}
 
 pub struct Ship {
     pub triangle_mesh: Mesh,
@@ -98,8 +105,15 @@ impl Ship {
         self.clamp_position();
     }
 
-    pub fn rotate(&mut self, radians: f32, dt: &f32) -> () {
-        self.rotation += radians * dt;
+    pub fn rotate(&mut self, rotation_direction: RotationDirection, dt: &f32) -> () {
+        let mut rotation: f32 = ROTATION_RADIANS.to_radians();
+
+        match rotation_direction {
+            RotationDirection::LEFT => rotation = rotation.neg(),
+            _ => ()
+        }
+
+        self.rotation += rotation * dt;
         self.forward.x = self.rotation.cos();
         self.forward.y = self.rotation.sin();
     }
@@ -108,7 +122,8 @@ impl Ship {
         return Projectile::new(
             ctx,
             &self.position,
-            &self.forward
+            &self.forward,
+            Color::WHITE
         );
     }
 

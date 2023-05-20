@@ -11,18 +11,19 @@ pub struct Projectile {
     pub position: Vec2,
     pub forward: Vec2,
     pub speed: f32,
+    pub color: Color,
     pub expired: bool
 }
 
 impl Projectile {
-    pub fn new(ctx: &Context, origin: &Vec2, forward: &Vec2) -> Self {
+    pub fn new(ctx: &Context, origin: &Vec2, forward: &Vec2, color: Color) -> Self {
         let circle_mesh: Mesh = Mesh::new_circle(
             ctx,
             graphics::DrawMode::fill(),
             *origin,
             PROJECTILE_RADIUS,
             2.0,
-            Color::WHITE
+            color
         ).unwrap();
 
         return Projectile {
@@ -30,6 +31,7 @@ impl Projectile {
             position: *origin,
             forward: *forward,
             speed: PROJECTILE_SPEED,
+            color,
             expired: false
         }
     }
@@ -51,7 +53,7 @@ impl Projectile {
             self.position,
             PROJECTILE_RADIUS,
             2.0,
-            Color::WHITE
+            self.color
         ).unwrap();
     }
 

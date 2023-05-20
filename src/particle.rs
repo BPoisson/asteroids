@@ -60,6 +60,6 @@ impl Particle {
     }
 
     pub fn check_expiration(&mut self, now_time: &Instant) -> () {
-        self.expired = (*now_time - self.creation_time).as_secs_f32() > PARTICLE_DURATION_SECS;
+        self.expired = now_time.duration_since(self.creation_time).as_secs_f32() > PARTICLE_DURATION_SECS;
     }
 }

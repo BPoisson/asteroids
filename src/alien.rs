@@ -8,7 +8,7 @@ use crate::constants::SCREEN_SIZE;
 use crate::projectile::Projectile;
 
 pub const SPEED: f32 = 200.0;
-const ALIEN_DURATION_SECS: f32 = 28.0;
+const ALIEN_DURATION_SECS: f32 = 30.0;
 pub const ALIEN_X_BOUND: f32 = 55.0;
 pub const ALIEN_NEGATIVE_Y_BOUND: f32 = 30.0;
 pub const ALIEN_POSITIVE_Y_BOUND: f32 = 15.0;
@@ -19,9 +19,10 @@ pub struct Alien {
     ship_body_line: Mesh,
     pub position: Vec2,
     forward: Vec2,
-    pub health: u32,
+    pub health: i32,
     aim_direction: Vec2,
-    creation_time: Instant,
+    creation_instant: Instant,
+    last_shot_instant: Instant,
     pub expired: bool
 }
 
@@ -32,10 +33,10 @@ impl Alien {
 
         if rng.gen_bool(0.5) {
             position = Vec2::new(-60.0, SCREEN_SIZE.y / 2.0);
-            forward = Vec2::new(1.0, 0.0);
+            forward = Vec2::new(-1.0, 0.0);
         } else {
             position = Vec2::new(SCREEN_SIZE.x + 60.0, SCREEN_SIZE.y / 2.0);
-            forward = Vec2::new(-1.0, 0.0);
+            forward = Vec2::new(1.0, 0.0);
         }
 
         return Alien {
@@ -44,9 +45,10 @@ impl Alien {
             ship_body_line: Alien::create_ship_body_line(ctx, &position),
             position,
             forward,
-            health: 3,
+            health: 5,
             aim_direction: Vec2::new(0.0, 0.0),
-            creation_time: Instant::now(),
+            creation_instant: Instant::now(),
+            last_shot_instant: Instant::now(),
             expired: false
         };
     }
@@ -74,7 +76,7 @@ impl Alien {
 
     pub fn move_forward(&mut self, rng: &mut ThreadRng, dt: &f32) -> () {
         let random_x: i32 = rng.gen_range(0..500);
-        let random_y: i32 = rng.gen_range(0..250);
+        let random_y: i32 = rng.gen_range(0..500);
 
         // Randomly move left or right.
         if self.forward.x < 1.0 && random_x == 0 {
@@ -122,12 +124,18 @@ impl Alien {
         self.aim_direction = normalized_distance;
     }
 
-    pub fn shoot(&self, ctx: &Context) -> Projectile {
-        return Projectile::new(
-            ctx,
-            &self.position,
-            &self.aim_direction
-        );
+    pub fn shoot(&mut self, ctx: &Context, rng: &mut ThreadRng, now: &Instant) -> Option<Projectile> {
+        if now.duration_since(self.last_shot_instant).as_secs_f32() >= 0.35 && rng.gen_bool(0.002) {
+            self.last_shot_instant = *now;
+
+            return Some(Projectile::new(
+                ctx,
+                &self.position,
+                &self.aim_direction,
+                Color::GREEN
+            ));
+        }
+        return None;
     }
 
     fn create_ship_mesh(ctx: &Context, position: &Vec2) -> Mesh {
@@ -185,6 +193,6 @@ impl Alien {
     }
 
     pub fn check_expiration(&mut self, now_time: &Instant) -> () {
-        self.expired = self.expired || (*now_time - self.creation_time).as_secs_f32() > ALIEN_DURATION_SECS;
+        self.expired = self.expired || now_time.duration_since(self.creation_instant).as_secs_f32() > ALIEN_DURATION_SECS;
     }
 }

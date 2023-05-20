@@ -24,7 +24,7 @@ use crate::alien::{Alien};
 use crate::particle::Particle;
 use crate::projectile::Projectile;
 use crate::score::Score;
-use crate::ship::Ship;
+use crate::ship::{RotationDirection, Ship};
 use crate::sounds::{Sounds};
 
 const GAME_ID: &str = "Asteroids";
@@ -42,6 +42,8 @@ struct GameState {
     last_update: Instant,
     rng: ThreadRng,
     last_asteroid_instant: Instant,
+    last_alien_spawn_check_instant: Instant,
+    spawn_alien: bool,
     sounds: Sounds
 }
 
@@ -68,37 +70,63 @@ impl GameState {
             last_update: now,
             rng,
             last_asteroid_instant: now,
+            last_alien_spawn_check_instant: now,        // Set to now so we don't spawn an Alien right away.
+            spawn_alien: false,
             sounds: Sounds::new(ctx)
         }
     }
 
-    fn clean_up(&mut self) -> () {
+    fn alien_spawn_check(&mut self, now: &Instant) -> () {
+        if self.alien.is_none() && now.duration_since(self.last_alien_spawn_check_instant).as_secs_f32() >= 10.0 {
+            self.last_alien_spawn_check_instant = *now;
+            self.spawn_alien = self.rng.gen_bool(0.2);
+        }
+    }
+
+    fn handle_input(&mut self, dt: &f32) -> () {
+        for key in &self.input_set {
+            match key {
+                KeyCode::Up => {
+                    self.ship.apply_thrust(dt);
+                }
+                KeyCode::Left => {
+                    self.ship.rotate(RotationDirection::LEFT, dt);
+                }
+                KeyCode::Right => {
+                    self.ship.rotate(RotationDirection::RIGHT, dt);
+                }
+                _ => ()
+            }
+        }
+    }
+
+    fn clean_up(&mut self, ctx: &Context) -> () {
         self.player_projectiles.retain(|p| !p.expired);
         self.alien_projectiles.retain(|p| !p.expired);
         self.asteroids.retain(|a| !a.destroyed);
         self.particles.retain(|p| !p.expired);
+
+        if let Some(alien) = &mut self.alien {
+            alien.check_expiration(&Instant::now());
+
+            if alien.expired {
+                self.alien = None;
+
+                self.sounds.stop_alien_music(ctx);
+                self.sounds.stop_alien_warning(ctx);
+            }
+        }
     }
 }
 
 impl event::EventHandler<GameError> for GameState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         let now: Instant = Instant::now();
-        let dt: f32 = (now - self.last_update).as_secs_f32();
+        let dt: f32 = now.duration_since(self.last_update).as_secs_f32();
 
-        for key in &self.input_set {
-            match key {
-                KeyCode::Up => {
-                    self.ship.apply_thrust(&dt);
-                }
-                KeyCode::Left => {
-                    self.ship.rotate(-360_f32.to_radians(), &dt);
-                }
-                KeyCode::Right => {
-                    self.ship.rotate(360_f32.to_radians(), &dt);
-                }
-                _ => ()
-            }
-        }
+        self.alien_spawn_check(&now);
+
+        self.handle_input(&dt);
 
         // Ship updates.
         self.ship.move_forward(&dt);
@@ -111,26 +139,18 @@ impl event::EventHandler<GameError> for GameState {
             alien.move_forward(&mut self.rng, &dt);
             alien.update_aim(&self.ship.position);
 
-            if self.rng.gen_range(0..500) == 0 {
-                let alien_projectile: Projectile = alien.shoot(&ctx);
-
+            if let Some(alien_projectile) = alien.shoot(ctx, &mut self.rng, &now) {
                 self.alien_projectiles.push(alien_projectile);
 
-                self.sounds.play_alien_shot(&ctx);
+                self.sounds.play_alien_shot(ctx);
             }
-
-            alien.check_expiration(&Instant::now());
-
-            if alien.expired {
-                self.alien = None;
-                self.sounds.stop_alien_music(&ctx);
-                self.sounds.stop_alien_warning(&ctx);
-            }
-        } else if self.rng.gen_range(0..=1) == 0 {
+        } else if self.spawn_alien {
             // Random chance to spawn the alien if it does not exist.
-            self.alien = Some(Alien::new(&ctx, &mut self.rng));
-            self.sounds.play_alien_music(&ctx);
-            self.sounds.play_alien_warning(&ctx);
+            self.alien = Some(Alien::new(ctx, &mut self.rng));
+            self.spawn_alien = false;
+
+            self.sounds.play_alien_music(ctx);
+            self.sounds.play_alien_warning(ctx);
         }
 
         // Player projectile updates.
@@ -164,61 +184,29 @@ impl event::EventHandler<GameError> for GameState {
             }
         }
 
-        let mut new_asteroids: Vec<Asteroid> = Vec::new();
-        let mut new_particles: Vec<Particle> = Vec::new();
-
         // Handle player_projectile collision with asteroids.
-        for i in 0..self.player_projectiles.len() {
-            if let Some(player_projectile) = self.player_projectiles.get_mut(i) {
-                // Check Alien collisions.
-                if let Some(alien) = &mut self.alien {
-                    // Destroy alien and projectile when hit.
-                    if collision::projectile_alien_hit(player_projectile, alien) {
-                        new_particles.append(&mut Particle::create_particle_effect(&mut self.rng, &alien.position, 6, 10));
-
-                        player_projectile.expired = true;
-                        alien.health -= 1;
-
-                        if alien.health <= 0 {
-                            alien.expired = true;
-
-                            self.score.update_score_alien();
-                            self.sounds.play_alien_explosion(ctx);
-                        }
-                        continue; // Skip this projectile as it has collided with an Alien.
-                    }
-                }
-                // Check Asteroid collisions.
-                for j in 0..self.asteroids.len() {
-                    if let Some(asteroid) = self.asteroids.get_mut(j) {
-                        if collision::projectile_asteroid_hit(player_projectile, asteroid) {
-                            // Add to particle effect
-                            new_particles.append(&mut Particle::create_particle_effect(&mut self.rng, &asteroid.position, 3, 5));
-                            // Asteroid breaks into smaller pieces.
-                            new_asteroids.append(&mut asteroid.destroy_asteroid(ctx, &mut self.rng));
-
-                            player_projectile.expired = true;
-
-                            self.score.update_score_asteroid(&asteroid.size);
-
-                            self.sounds.play_asteroid_break_sound(ctx, &asteroid.size);
-                        }
-                    }
-                }
-            }
-        }
+        let mut new_asteroids_particles_tuple: (Vec<Asteroid>, Vec<Particle>) =
+            collision::handle_collisions(
+                ctx,
+                &mut self.rng,
+                &mut self.ship,
+                &mut self.alien,
+                &mut self.player_projectiles,
+                &mut self.asteroids,
+                &mut self.score,
+                &mut self.sounds);
 
         // Spawn another asteroid
-        if self.asteroids.len() < 3 || (now - self.last_asteroid_instant).as_secs_f32() > 8.0 {
-            new_asteroids.push(Asteroid::new(ctx, &mut self.rng));
+        if self.asteroids.len() < 3 || now.duration_since(self.last_asteroid_instant).as_secs_f32() > 8.0 {
+            new_asteroids_particles_tuple.0.push(Asteroid::new(ctx, &mut self.rng));
             self.last_asteroid_instant = now;
         }
 
         // Free destroyed and expired assets.
-        self.clean_up();
+        self.clean_up(ctx);
 
-        self.asteroids.append(&mut new_asteroids);
-        self.particles.append(&mut new_particles);
+        self.asteroids.append(&mut new_asteroids_particles_tuple.0);
+        self.particles.append(&mut new_asteroids_particles_tuple.1);
 
         self.last_update = Instant::now();
         Ok(())
