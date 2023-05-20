@@ -72,7 +72,6 @@ impl Sounds {
     pub fn play_alien_music(&mut self, ctx: &Context) -> () {
         if let Some(alien_music) = self.sounds.get_mut(5) {
             alien_music.play(ctx).unwrap();
-            alien_music.set_repeat(true);
         }
     }
 

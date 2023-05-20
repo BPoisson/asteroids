@@ -125,15 +125,17 @@ impl Alien {
     }
 
     pub fn shoot(&mut self, ctx: &Context, rng: &mut ThreadRng, now: &Instant) -> Option<Projectile> {
-        if now.duration_since(self.last_shot_instant).as_secs_f32() >= 0.35 && rng.gen_bool(0.002) {
+        if now.duration_since(self.last_shot_instant).as_secs_f32() >= 0.5 {
             self.last_shot_instant = *now;
 
-            return Some(Projectile::new(
-                ctx,
-                &self.position,
-                &self.aim_direction,
-                Color::GREEN
-            ));
+            if rng.gen_bool(0.25) {
+                return Some(Projectile::new(
+                    ctx,
+                    &self.position,
+                    &self.aim_direction,
+                    Color::GREEN
+                ));
+            }
         }
         return None;
     }

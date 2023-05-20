@@ -1,6 +1,6 @@
 use ggez::{Context, graphics};
+use ggez::glam::Vec2;
 use ggez::graphics::{Canvas, Color, Mesh};
-use crate::{Vec2};
 use crate::constants::SCREEN_SIZE;
 
 pub const PROJECTILE_RADIUS: f32 = 5.0;
