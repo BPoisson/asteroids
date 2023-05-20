@@ -11,17 +11,15 @@ pub struct Projectile {
     pub position: Vec2,
     pub forward: Vec2,
     pub speed: f32,
-    pub to_remove: bool
+    pub expired: bool
 }
 
 impl Projectile {
-    pub fn new(ctx: &Context, x_pos: f32, y_pos: f32, forward_x: f32, forward_y: f32) -> Self {
-        let position: Vec2 = Vec2::new(x_pos, y_pos);
-
+    pub fn new(ctx: &Context, origin: &Vec2, forward: &Vec2) -> Self {
         let circle_mesh: Mesh = Mesh::new_circle(
             ctx,
             graphics::DrawMode::fill(),
-            position,
+            *origin,
             PROJECTILE_RADIUS,
             2.0,
             Color::WHITE
@@ -29,10 +27,10 @@ impl Projectile {
 
         return Projectile {
             circle_mesh,
-            position,
-            forward: Vec2::new(forward_x, forward_y),
+            position: *origin,
+            forward: *forward,
             speed: PROJECTILE_SPEED,
-            to_remove: false
+            expired: false
         }
     }
 
@@ -63,7 +61,7 @@ impl Projectile {
             || self.position.x > SCREEN_SIZE.x
             || self.position.y > SCREEN_SIZE.y {
 
-            self.to_remove = true;
+            self.expired = true;
         }
     }
 }

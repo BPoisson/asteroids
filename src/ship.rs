@@ -17,7 +17,7 @@ pub struct Ship {
     pub forward: Vec2,
     pub thrust: Vec2,
     pub thrusting: bool,
-    pub lives: i32
+    pub health: i32
 }
 
 impl Ship {
@@ -35,7 +35,7 @@ impl Ship {
             forward: Vec2::new(0.0, -1.0),
             thrust: Vec2::new(0.0, 0.0),
             thrusting: false,
-            lives: 4
+            health: 5
         }
     }
 
@@ -55,7 +55,7 @@ impl Ship {
         );
 
         // Only draw exhaust when thrusting and only 50% of frames.
-        if self.thrusting && rng.gen_range(0..=1) == 1{
+        if self.thrusting && rng.gen_range(0..=1) == 0 {
             let exhaust_points: [Vec2; 7] = Ship::get_exhaust_points(&self.position, &self.rotation);
 
             self.exhaust_mesh = Mesh::new_polygon(
@@ -107,10 +107,8 @@ impl Ship {
     pub fn shoot(&self, ctx: &Context) -> Projectile {
         return Projectile::new(
             ctx,
-            self.position.x,
-            self.position.y,
-            self.forward.x,
-            self.forward.y
+            &self.position,
+            &self.forward
         );
     }
 

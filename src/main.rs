@@ -33,7 +33,8 @@ const AUTHOR: &str = "BPoisson";
 struct GameState {
     ship: Ship,
     asteroids: Vec<Asteroid>,
-    projectiles: Vec<Projectile>,
+    player_projectiles: Vec<Projectile>,
+    alien_projectiles: Vec<Projectile>,
     particles: Vec<Particle>,
     alien: Option<Alien>,
     score: Score,
@@ -51,14 +52,15 @@ impl GameState {
 
         let mut asteroids: Vec<Asteroid> = Vec::new();
 
-        for _ in 0..4 {
+        for _ in 0..3 {
             asteroids.push(Asteroid::new(ctx, &mut rng));
         }
 
         GameState {
             ship: Ship::new(ctx),
             asteroids,
-            projectiles: Vec::new(),
+            player_projectiles: Vec::new(),
+            alien_projectiles: Vec::new(),
             particles: Vec::new(),
             alien: None,
             score: Score::new(),
@@ -68,6 +70,13 @@ impl GameState {
             last_asteroid_instant: now,
             sounds: Sounds::new(ctx)
         }
+    }
+
+    fn clean_up(&mut self) -> () {
+        self.player_projectiles.retain(|p| !p.expired);
+        self.alien_projectiles.retain(|p| !p.expired);
+        self.asteroids.retain(|a| !a.destroyed);
+        self.particles.retain(|p| !p.expired);
     }
 }
 
@@ -97,22 +106,57 @@ impl event::EventHandler<GameError> for GameState {
             self.ship.apply_friction(&dt);
         }
 
-        // Projectile updates.
-        for i in 0..self.projectiles.len() {
-            if let Some(projectile) = self.projectiles.get_mut(i) {
-                projectile.move_forward(ctx, &dt);
-                projectile.set_out_of_bounds();
+        // Alien updates.
+        if let Some(alien) = &mut self.alien {
+            alien.move_forward(&mut self.rng, &dt);
+            alien.update_aim(&self.ship.position);
+
+            if self.rng.gen_range(0..500) == 0 {
+                let alien_projectile: Projectile = alien.shoot(&ctx);
+
+                self.alien_projectiles.push(alien_projectile);
+
+                self.sounds.play_alien_shot(&ctx);
+            }
+
+            alien.check_expiration(&Instant::now());
+
+            if alien.expired {
+                self.alien = None;
+                self.sounds.stop_alien_music(&ctx);
+                self.sounds.stop_alien_warning(&ctx);
+            }
+        } else if self.rng.gen_range(0..=1) == 0 {
+            // Random chance to spawn the alien if it does not exist.
+            self.alien = Some(Alien::new(&ctx, &mut self.rng));
+            self.sounds.play_alien_music(&ctx);
+            self.sounds.play_alien_warning(&ctx);
+        }
+
+        // Player projectile updates.
+        for i in 0..self.player_projectiles.len() {
+            if let Some(player_projectile) = self.player_projectiles.get_mut(i) {
+                player_projectile.move_forward(ctx, &dt);
+                player_projectile.set_out_of_bounds();
             }
         }
 
-        // Asteroid updates
+        // Alien projectile updates.
+        for i in 0..self.alien_projectiles.len() {
+            if let Some(alien_projectile) = self.alien_projectiles.get_mut(i) {
+                alien_projectile.move_forward(ctx, &dt);
+                alien_projectile.set_out_of_bounds();
+            }
+        }
+
+        // Asteroid updates.
         for i in 0..self.asteroids.len() {
             if let Some(asteroid) = self.asteroids.get_mut(i) {
                 asteroid.move_forward(ctx, &dt);
             }
         }
 
-        // Particle updates
+        // Particle updates.
         for i in 0..self.asteroids.len() {
             if let Some(particle) = self.particles.get_mut(i) {
                 particle.move_forward(&dt);
@@ -120,51 +164,40 @@ impl event::EventHandler<GameError> for GameState {
             }
         }
 
-        // Alien updates
-        if let Some(alien) = &mut self.alien {
-            alien.move_forward(&mut self.rng, &dt);
-            alien.check_expiration(&Instant::now());
-
-            if alien.expired {
-                self.alien = None;
-                self.sounds.stop_alien_music(&ctx);
-            }
-        } else if self.rng.gen_range(0..=10000) == 1 {
-            // Random chance to spawn the alien if it does not exist.
-            self.alien = Some(Alien::new(&ctx, &mut self.rng));
-            self.sounds.play_alien_music(&ctx);
-        }
-
         let mut new_asteroids: Vec<Asteroid> = Vec::new();
         let mut new_particles: Vec<Particle> = Vec::new();
 
-        // Handle projectile collision with asteroids.
-        for i in 0..self.projectiles.len() {
-            if let Some(projectile) = self.projectiles.get_mut(i) {
+        // Handle player_projectile collision with asteroids.
+        for i in 0..self.player_projectiles.len() {
+            if let Some(player_projectile) = self.player_projectiles.get_mut(i) {
                 // Check Alien collisions.
                 if let Some(alien) = &mut self.alien {
                     // Destroy alien and projectile when hit.
-                    if collision::projectile_alien_hit(projectile, alien) {
-                        new_particles.append(&mut Particle::create_particle_effect(&mut self.rng, &alien.position));
+                    if collision::projectile_alien_hit(player_projectile, alien) {
+                        new_particles.append(&mut Particle::create_particle_effect(&mut self.rng, &alien.position, 6, 10));
 
-                        projectile.to_remove = true;
-                        alien.expired = true;
+                        player_projectile.expired = true;
+                        alien.health -= 1;
 
-                        self.score.update_score_alien();
-                        self.sounds.play_alien_explosion(ctx);
+                        if alien.health <= 0 {
+                            alien.expired = true;
+
+                            self.score.update_score_alien();
+                            self.sounds.play_alien_explosion(ctx);
+                        }
                         continue; // Skip this projectile as it has collided with an Alien.
                     }
                 }
                 // Check Asteroid collisions.
                 for j in 0..self.asteroids.len() {
                     if let Some(asteroid) = self.asteroids.get_mut(j) {
-                        if collision::projectile_asteroid_hit(projectile, asteroid) {
+                        if collision::projectile_asteroid_hit(player_projectile, asteroid) {
                             // Add to particle effect
-                            new_particles.append(&mut Particle::create_particle_effect(&mut self.rng, &asteroid.position));
+                            new_particles.append(&mut Particle::create_particle_effect(&mut self.rng, &asteroid.position, 3, 5));
                             // Asteroid breaks into smaller pieces.
                             new_asteroids.append(&mut asteroid.destroy_asteroid(ctx, &mut self.rng));
 
-                            projectile.to_remove = true;
+                            player_projectile.expired = true;
 
                             self.score.update_score_asteroid(&asteroid.size);
 
@@ -181,9 +214,8 @@ impl event::EventHandler<GameError> for GameState {
             self.last_asteroid_instant = now;
         }
 
-        self.projectiles.retain(|p| !p.to_remove);
-        self.asteroids.retain(|a| !a.destroyed);
-        self.particles.retain(|p| !p.expired);
+        // Free destroyed and expired assets.
+        self.clean_up();
 
         self.asteroids.append(&mut new_asteroids);
         self.particles.append(&mut new_particles);
@@ -197,8 +229,12 @@ impl event::EventHandler<GameError> for GameState {
 
         self.ship.draw(ctx, &mut canvas, &mut self.rng);
 
-        for projectile in &mut self.projectiles {
-            projectile.draw(&mut canvas);
+        for player_projectile in &mut self.player_projectiles {
+            player_projectile.draw(&mut canvas);
+        }
+
+        for alien_projectile in &mut self.alien_projectiles {
+            alien_projectile.draw(&mut canvas);
         }
 
         for asteroid in &mut self.asteroids {
@@ -225,9 +261,9 @@ impl event::EventHandler<GameError> for GameState {
                 self.ship.thrusting = true;
                 self.sounds.play_thrust_sound(ctx);
             } else if key == KeyCode::Space && !self.input_set.contains(&key) {
-                let projectile: Projectile = self.ship.shoot(ctx);
+                let player_projectile: Projectile = self.ship.shoot(ctx);
 
-                self.projectiles.push(projectile);
+                self.player_projectiles.push(player_projectile);
 
                 self.sounds.play_shoot_sound(ctx);
             }

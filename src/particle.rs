@@ -48,10 +48,10 @@ impl Particle {
         self.rect.y += self.forward.y * PARTICLE_SPEED * dt;
     }
 
-    pub fn create_particle_effect(rng: &mut ThreadRng, position: &Vec2) -> Vec<Self> {
+    pub fn create_particle_effect(rng: &mut ThreadRng, position: &Vec2, min_particles: u32, max_particles: u32) -> Vec<Self> {
         let mut particles: Vec<Particle> = Vec::new();
 
-        for _ in 0..rng.gen_range(3..=5) {
+        for _ in 0..rng.gen_range(min_particles..=max_particles) {
             particles.push(
                 Particle::new(rng, &position)
             )

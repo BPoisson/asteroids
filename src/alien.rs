@@ -5,6 +5,7 @@ use ggez::graphics::{Canvas, Color, DrawMode, DrawParam, Mesh};
 use rand::Rng;
 use rand::rngs::ThreadRng;
 use crate::constants::SCREEN_SIZE;
+use crate::projectile::Projectile;
 
 pub const SPEED: f32 = 200.0;
 const ALIEN_DURATION_SECS: f32 = 28.0;
@@ -18,6 +19,8 @@ pub struct Alien {
     ship_body_line: Mesh,
     pub position: Vec2,
     forward: Vec2,
+    pub health: u32,
+    aim_direction: Vec2,
     creation_time: Instant,
     pub expired: bool
 }
@@ -41,6 +44,8 @@ impl Alien {
             ship_body_line: Alien::create_ship_body_line(ctx, &position),
             position,
             forward,
+            health: 3,
+            aim_direction: Vec2::new(0.0, 0.0),
             creation_time: Instant::now(),
             expired: false
         };
@@ -101,6 +106,28 @@ impl Alien {
         } else if self.position.y > SCREEN_SIZE.y {
             self.position.y = 0.0;
         }
+    }
+
+    pub fn update_aim(&mut self, player_position: &Vec2) -> () {
+        let distance: Vec2 = *player_position - self.position;
+        let magnitude: f32 = (distance.x.powi(2) + distance.y.powi(2)).sqrt();
+        let normalized_distance: Vec2;
+
+        if magnitude != 0.0 {
+            normalized_distance = distance / magnitude;
+        } else {
+            normalized_distance = distance;
+        };
+
+        self.aim_direction = normalized_distance;
+    }
+
+    pub fn shoot(&self, ctx: &Context) -> Projectile {
+        return Projectile::new(
+            ctx,
+            &self.position,
+            &self.aim_direction
+        );
     }
 
     fn create_ship_mesh(ctx: &Context, position: &Vec2) -> Mesh {
