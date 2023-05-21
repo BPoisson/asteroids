@@ -128,7 +128,7 @@ impl Alien {
         if now.duration_since(self.last_shot_instant).as_secs_f32() >= 0.5 {
             self.last_shot_instant = *now;
 
-            if rng.gen_bool(0.25) {
+            if rng.gen_bool(0.35) {
                 return Some(Projectile::new(
                     ctx,
                     &self.position,
