@@ -62,7 +62,7 @@ impl Game {
 
     fn alien_spawn_check(&mut self, now: &Instant) -> () {
         if self.alien.is_none() && now.duration_since(self.last_alien_spawn_check_instant).as_secs_f32() >= 10.0 {
-            self.spawn_alien = self.rng.gen_bool(0.01);
+            self.spawn_alien = self.rng.gen_bool(0.1);
             self.last_alien_spawn_check_instant = *now;
         }
     }

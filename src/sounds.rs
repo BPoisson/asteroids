@@ -20,6 +20,8 @@ impl Sounds {
         sounds.push(Source::new(ctx, "\\sounds\\alien_shoot.wav").unwrap());
         sounds.push(Source::new(ctx, "\\sounds\\alien_hit.wav").unwrap());
         sounds.push(Source::new(ctx, "\\sounds\\alien_explosion.wav").unwrap());
+        sounds.push(Source::new(ctx, "\\sounds\\asteroid_collision.wav").unwrap());
+        sounds.push(Source::new(ctx, "\\sounds\\ship_hit.wav").unwrap());
 
         return Sounds {
             sounds
@@ -115,6 +117,16 @@ impl Sounds {
         }
     }
 
+    pub fn play_asteroid_collision_sound(&mut self, ctx: &Context) -> () {
+        if let Some(asteroid_collision_sound) = self.sounds.get_mut(10) {
+            asteroid_collision_sound.play_detached(ctx).unwrap();
+        }
+    }
 
+    pub fn play_ship_hit_sound(&mut self, ctx: &Context) -> () {
+        if let Some(ship_hit_sound) = self.sounds.get_mut(11) {
+            ship_hit_sound.play_detached(ctx).unwrap();
+        }
+    }
 }
 

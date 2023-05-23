@@ -100,10 +100,10 @@ fn handle_ship_asteroid_collision(ctx: &Context,
                                   ship: &mut Ship,
                                   sounds: &mut Sounds) -> () {
     println!("Asteroid collision!");
-    ship.health = ship.health - 1;
+    ship.health -= 1;
     ship.immune = true;
     ship.immune_instant = Instant::now();
-    sounds.play_alien_hit_sound(ctx);
+    sounds.play_asteroid_collision_sound(ctx);
 }
 
 fn handle_alien_projectile_ship_hit(ctx: &Context,
@@ -113,14 +113,12 @@ fn handle_alien_projectile_ship_hit(ctx: &Context,
                               sounds: &mut Sounds) -> Vec<Particle> {
     projectile.expired = true;
     ship.health -= 1;
+    ship.immune = true;
+    ship.immune_instant = Instant::now();
     
     println!("Player hit!");
 
-    if ship.health <= 0 {
-        
-    } else {
-        sounds.play_alien_hit_sound(ctx);
-    }
+    sounds.play_ship_hit_sound(ctx);
 
     return Particle::create_particle_effect(
         rng,
@@ -217,8 +215,8 @@ pub fn ship_asteroid_collision(ship: &Ship, asteroid: &Asteroid) -> bool {
     let asteroid_y: f32 = asteroid.position.y;
     let asteroid_radius: f32 = asteroid.radius;
 
-    let asteroid_x_range: (f32, f32) = (asteroid_x - asteroid_radius, asteroid_x + asteroid_radius);
-    let asteroid_y_range: (f32, f32) = (asteroid_y - asteroid_radius, asteroid_y + asteroid_radius);
+    let asteroid_x_range: (f32, f32) = (asteroid_x - asteroid_radius + 5.0, asteroid_x + asteroid_radius - 5.0);
+    let asteroid_y_range: (f32, f32) = (asteroid_y - asteroid_radius + 5.0, asteroid_y + asteroid_radius - 5.0);
 
     let x_overlap: bool = (ship.collision_rect_ranges[1][0] > asteroid_x_range.0 && ship.collision_rect_ranges[1][0] < asteroid_x_range.1)
         || (ship.collision_rect_ranges[0][0] < asteroid_x_range.1 && asteroid_x_range.0 < ship.collision_rect_ranges[0][0]);

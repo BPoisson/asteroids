@@ -65,6 +65,7 @@ impl Ship {
 
         self.triangle_mesh = Ship::create_ship_triangle(ctx, &triangle_points);
 
+        // Flicker Ship when immune.
         if !self.immune || rng.gen_range(0..=render_range_max) == 0 {
             canvas.draw(
                 &self.triangle_mesh,
@@ -72,7 +73,7 @@ impl Ship {
             );
         }
 
-        // Only draw exhaust when thrusting and only 50% of frames.
+        // Draw flickering exhaust when thrusting.
         if self.thrusting && rng.gen_range(0..=render_range_max) == 0 {
             let exhaust_points: [Vec2; 7] = Ship::get_exhaust_points(&self.position, &self.rotation);
 
