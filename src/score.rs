@@ -5,7 +5,7 @@ use crate::asteroid::AsteroidSize;
 const SCORE_SCALE: f32 = 30.0;
 
 pub struct Score {
-    score: u64,
+    pub score: u64,
     text: Text
 }
 

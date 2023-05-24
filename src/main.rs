@@ -14,6 +14,7 @@ mod sounds;
 mod score;
 mod alien;
 mod game;
+mod save;
 
 
 const GAME_ID: &str = "Asteroids";

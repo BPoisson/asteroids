@@ -7,7 +7,7 @@ use rand::Rng;
 use rand::rngs::ThreadRng;
 use crate::alien::Alien;
 use crate::asteroid::Asteroid;
-use crate::collision;
+use crate::{collision, save};
 use crate::particle::Particle;
 use crate::projectile::Projectile;
 use crate::score::Score;
@@ -256,6 +256,11 @@ impl event::EventHandler<GameError> for Game {
                 self.player_projectiles.push(player_projectile);
 
                 self.sounds.play_player_shoot_sound(ctx);
+            } else if key == KeyCode::Escape {
+                if save::get_high_score() < self.score.score {
+                    save::save_high_score(self.score.score);
+                }
+                ctx.request_quit();
             }
             self.input_set.insert(key);
         }
