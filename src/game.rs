@@ -1,13 +1,15 @@
 use std::collections::HashSet;
 use std::time::Instant;
-use ggez::{Context, event, GameError, GameResult};
-use ggez::graphics::{Canvas, Color};
+use ggez::{Context, event, GameError, GameResult, graphics};
+use ggez::glam::Vec2;
+use ggez::graphics::{Canvas, Color, PxScale, Text, TextLayout};
 use ggez::input::keyboard::{KeyCode, KeyInput};
 use rand::Rng;
 use rand::rngs::ThreadRng;
 use crate::alien::Alien;
 use crate::asteroid::Asteroid;
 use crate::{collision, save};
+use crate::constants::SCREEN_SIZE;
 use crate::particle::Particle;
 use crate::projectile::Projectile;
 use crate::score::Score;
@@ -28,7 +30,8 @@ pub struct Game {
     last_asteroid_instant: Instant,
     last_alien_spawn_check_instant: Instant,
     spawn_alien: bool,
-    sounds: Sounds
+    sounds: Sounds,
+    paused: bool
 }
 
 impl Game {
@@ -56,7 +59,8 @@ impl Game {
             last_asteroid_instant: now,
             last_alien_spawn_check_instant: now,    // Set to now so we don't spawn an Alien right away.
             spawn_alien: false,
-            sounds: Sounds::new(ctx)
+            sounds: Sounds::new(ctx),
+            paused: false
         }
     }
 
@@ -84,36 +88,7 @@ impl Game {
         }
     }
 
-    fn clean_up(&mut self, ctx: &Context, now: &Instant) -> () {
-        self.player_projectiles.retain(|p| !p.expired);
-        self.alien_projectiles.retain(|p| !p.expired);
-        self.asteroids.retain(|a| !a.destroyed);
-        self.particles.retain(|p| !p.expired);
-
-        if let Some(alien) = &mut self.alien {
-            alien.check_expiration(&Instant::now());
-
-            if alien.expired {
-                self.alien = None;
-                self.last_alien_spawn_check_instant = *now;     // Avoid spawning an Alien right after the last one.
-
-                self.sounds.stop_alien_music(ctx);
-                self.sounds.stop_alien_warning_sound(ctx);
-            }
-        }
-    }
-}
-
-impl event::EventHandler<GameError> for Game {
-    fn update(&mut self, ctx: &mut Context) -> GameResult {
-        let now: Instant = Instant::now();
-        let dt: f32 = now.duration_since(self.last_update).as_secs_f32();
-        self.last_update = now;
-
-        self.alien_spawn_check(&now);
-
-        self.handle_input(&dt);
-
+    fn handle_game_updates(&mut self, ctx: &Context, dt: &f32, now: &Instant) -> () {
         // Ship updates.
         self.ship.move_forward(&dt);
         if !self.input_set.contains(&KeyCode::Up) {
@@ -171,6 +146,63 @@ impl event::EventHandler<GameError> for Game {
                 particle.check_expiration(&Instant::now());
             }
         }
+    }
+
+    fn get_pause_text(&mut self) -> Text {
+        let high_score: u64 = save::get_high_score();
+        let pause_string: String = format!("Game Paused!\n\nHigh Score: {}\n\nPress Q To Save And Quit", high_score);
+        let mut pause_text: Text = Text::new(pause_string);
+        pause_text.set_scale(PxScale::from(50.0));
+        pause_text.set_layout(TextLayout::center());
+
+        return pause_text;
+    }
+
+    fn draw_pause_text(&mut self, canvas: &mut Canvas) -> () {
+        let pause_text: Text = self.get_pause_text();
+
+        canvas.draw(
+            &pause_text,
+            graphics::DrawParam::default()
+                .dest(Vec2::new(SCREEN_SIZE.x / 2.0, SCREEN_SIZE.y / 2.0))
+        );
+    }
+
+    fn clean_up(&mut self, ctx: &Context, now: &Instant) -> () {
+        self.player_projectiles.retain(|p| !p.expired);
+        self.alien_projectiles.retain(|p| !p.expired);
+        self.asteroids.retain(|a| !a.destroyed);
+        self.particles.retain(|p| !p.expired);
+
+        if let Some(alien) = &mut self.alien {
+            alien.check_expiration(&Instant::now());
+
+            if alien.expired {
+                self.alien = None;
+                self.last_alien_spawn_check_instant = *now;     // Avoid spawning an Alien right after the last one.
+
+                self.sounds.stop_alien_music(ctx);
+                self.sounds.stop_alien_warning_sound(ctx);
+            }
+        }
+    }
+}
+
+impl event::EventHandler<GameError> for Game {
+    fn update(&mut self, ctx: &mut Context) -> GameResult {
+        let now: Instant = Instant::now();
+        let dt: f32 = now.duration_since(self.last_update).as_secs_f32();
+        self.last_update = now;
+
+        if self.paused {
+            return Ok(());
+        }
+
+        self.alien_spawn_check(&now);
+
+        self.handle_input(&dt);
+
+        self.handle_game_updates(ctx, &dt, &now);
 
         // Handle player_projectile collision with asteroids.
         let mut player_projectile_new_asteroids_particles_tuple: (Vec<Asteroid>, Vec<Particle>) =
@@ -241,6 +273,10 @@ impl event::EventHandler<GameError> for Game {
 
         self.score.draw(&mut canvas);
 
+        if self.paused {
+            self.draw_pause_text(&mut canvas);
+        }
+
         canvas.finish(ctx)?;
         Ok(())
     }
@@ -257,14 +293,17 @@ impl event::EventHandler<GameError> for Game {
 
                 self.sounds.play_player_shoot_sound(ctx);
             } else if key == KeyCode::Escape {
+                self.paused = !self.paused;
+            } else if key == KeyCode::Q && self.paused {
                 if save::get_high_score() < self.score.score {
                     save::save_high_score(self.score.score);
                 }
                 ctx.request_quit();
             }
-            self.input_set.insert(key);
+            if key != KeyCode::Escape && key != KeyCode::Q {
+                self.input_set.insert(key);
+            }
         }
-
         Ok(())
     }
 
