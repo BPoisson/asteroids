@@ -1,5 +1,6 @@
 use std::time::Instant;
 use ggez::Context;
+use ggez::graphics::Color;
 use rand::rngs::ThreadRng;
 use crate::alien::{Alien, ALIEN_NEGATIVE_Y_BOUND, ALIEN_POSITIVE_Y_BOUND, ALIEN_X_BOUND};
 use crate::asteroid::Asteroid;
@@ -47,18 +48,22 @@ pub fn handle_player_projectile_collisions(ctx: &Context,
 }
 
 pub fn handle_ship_asteroid_collisions(ctx: &Context,
+                                       rng: &mut ThreadRng,
                                        ship: &mut Ship,
                                        asteroids: &Vec<Asteroid>,
-                                       sounds: &mut Sounds) -> () {
+                                       sounds: &mut Sounds) -> Option<Vec<Particle>> {
     if ship.immune {
-        return;
+        return None;
     }
+
+    let mut new_particles: Vec<Particle> = Vec::new();
 
     for asteroid in asteroids {
         if ship_asteroid_collision(ship, asteroid) {
-            handle_ship_asteroid_collision(ctx, ship, sounds);
+            new_particles = handle_ship_asteroid_collision(ctx, rng, ship, sounds);
         }
     }
+    return Some(new_particles);
 }
 
 pub fn handle_alien_projectile_collisions(ctx: &Context,
@@ -97,13 +102,22 @@ pub fn handle_alien_projectile_collisions(ctx: &Context,
 }
 
 fn handle_ship_asteroid_collision(ctx: &Context,
+                                  rng: &mut ThreadRng,
                                   ship: &mut Ship,
-                                  sounds: &mut Sounds) -> () {
+                                  sounds: &mut Sounds) -> Vec<Particle> {
     println!("Asteroid collision!");
     ship.health -= 1;
     ship.immune = true;
     ship.immune_instant = Instant::now();
     sounds.play_asteroid_collision_sound(ctx);
+
+    return Particle::create_particle_effect(
+        rng,
+        &ship.position,
+        6,
+        10,
+        Color::WHITE
+    )
 }
 
 fn handle_alien_projectile_ship_hit(ctx: &Context,
@@ -124,7 +138,8 @@ fn handle_alien_projectile_ship_hit(ctx: &Context,
         rng,
         &ship.position,
         6,
-        10);
+        10,
+    Color::GREEN);
 }
 
 fn handle_projectile_alien_hit(ctx: &Context,
@@ -148,7 +163,8 @@ fn handle_projectile_alien_hit(ctx: &Context,
         rng,
         &alien.position,
         6,
-        10);
+        10,
+        Color::WHITE);
 }
 
 fn handle_projectile_asteroid_hit(ctx: &Context,
@@ -157,7 +173,7 @@ fn handle_projectile_asteroid_hit(ctx: &Context,
                                   asteroid: &mut Asteroid,
                                   score: &mut Score,
                                   sounds: &mut Sounds) -> (Vec<Asteroid>, Vec<Particle>) {
-    let new_particles: Vec<Particle> = Particle::create_particle_effect(rng, &asteroid.position, 3, 5);
+    let new_particles: Vec<Particle> = Particle::create_particle_effect(rng, &asteroid.position, 3, 5, Color::WHITE);
     let new_asteroids: Vec<Asteroid> = asteroid.destroy_asteroid(ctx, rng);
 
     projectile.expired = true;

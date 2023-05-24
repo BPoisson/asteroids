@@ -193,7 +193,9 @@ impl event::EventHandler<GameError> for Game {
                 &mut self.score,
                 &mut self.sounds);
 
-        collision::handle_ship_asteroid_collisions(ctx, &mut self.ship, &self.asteroids, &mut self.sounds);
+        if let Some(particles) = &mut collision::handle_ship_asteroid_collisions(ctx, &mut self.rng, &mut self.ship, &self.asteroids, &mut self.sounds) {
+            player_projectile_new_asteroids_particles_tuple.1.append(particles);
+        }
 
         // Spawn another asteroid
         if self.asteroids.len() < 3 || (self.asteroids.len() < 50 && now.duration_since(self.last_asteroid_instant).as_secs_f32() > 8.0) {

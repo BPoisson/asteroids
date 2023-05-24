@@ -12,11 +12,12 @@ pub struct Particle {
     pub rect: Rect,
     pub creation_time: Instant,
     pub forward: Vec2,
+    pub color: Color,
     pub expired: bool
 }
 
 impl Particle {
-    pub fn new(rng: &mut ThreadRng, position: &Vec2) -> Self {
+    pub fn new(rng: &mut ThreadRng, position: &Vec2, color: Color) -> Self {
         let particle_size: f32 = rng.gen_range(3.0..=5.0);
 
         let rect = Rect::new(
@@ -31,6 +32,7 @@ impl Particle {
             rect,
             creation_time: Instant::now(),
             forward: Vec2::new(x_dir, y_dir),
+            color,
             expired: false
         }
     }
@@ -40,7 +42,7 @@ impl Particle {
             &graphics::Quad,
             graphics::DrawParam::new()
                 .dest_rect(self.rect)
-                .color(Color::WHITE));
+                .color(self.color));
     }
 
     pub fn move_forward(&mut self, dt: &f32) -> () {
@@ -48,12 +50,12 @@ impl Particle {
         self.rect.y += self.forward.y * PARTICLE_SPEED * dt;
     }
 
-    pub fn create_particle_effect(rng: &mut ThreadRng, position: &Vec2, min_particles: u32, max_particles: u32) -> Vec<Self> {
+    pub fn create_particle_effect(rng: &mut ThreadRng, position: &Vec2, min_particles: u32, max_particles: u32, color: Color) -> Vec<Self> {
         let mut particles: Vec<Particle> = Vec::new();
 
         for _ in 0..rng.gen_range(min_particles..=max_particles) {
             particles.push(
-                Particle::new(rng, &position)
+                Particle::new(rng, &position, color)
             )
         }
         return particles;
