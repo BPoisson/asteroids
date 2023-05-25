@@ -144,7 +144,7 @@ impl Game {
         }
 
         // Particle updates.
-        for i in 0..self.asteroids.len() {
+        for i in 0..self.particles.len() {
             if let Some(particle) = self.particles.get_mut(i) {
                 particle.move_forward(&dt);
                 particle.check_expiration(&Instant::now());
@@ -239,8 +239,12 @@ impl event::EventHandler<GameError> for Game {
             player_projectile_new_asteroids_particles_tuple.1.append(particles);
         }
 
+        if let Some(particles) = &mut collision::handle_ship_alien_collisions(ctx, &mut self.rng, &mut self.ship, &mut self.alien, &mut self.score, &mut self.sounds) {
+            player_projectile_new_asteroids_particles_tuple.1.append(particles);
+        }
+
         // Spawn another asteroid
-        if self.asteroids.len() < 4 || (self.asteroids.len() < 10 && now.duration_since(self.last_asteroid_instant).as_secs_f32() > 8.0) {
+        if self.asteroids.len() < 4 || (self.asteroids.len() < 4 && now.duration_since(self.last_asteroid_instant).as_secs_f32() > 8.0) {
             player_projectile_new_asteroids_particles_tuple.0.push(Asteroid::new(ctx, &mut self.rng));
             self.last_asteroid_instant = now;
         }

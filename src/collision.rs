@@ -60,10 +60,41 @@ pub fn handle_ship_asteroid_collisions(ctx: &Context,
 
     for asteroid in asteroids {
         if ship_asteroid_collision(ship, asteroid) {
-            new_particles = handle_ship_asteroid_collision(ctx, rng, ship, sounds);
+            new_particles = handle_ship_collision(ctx, rng, ship, sounds);
         }
     }
     return Some(new_particles);
+}
+
+pub fn handle_ship_alien_collisions(ctx: &Context,
+                                       rng: &mut ThreadRng,
+                                       ship: &mut Ship,
+                                       alien: &mut Option<Alien>,
+                                       score: &mut Score,
+                                       sounds: &mut Sounds) -> Option<Vec<Particle>> {
+    if ship.immune{
+        return None;
+    }
+
+    if let Some(alien) = alien {
+        let mut new_particles: Vec<Particle> = Vec::new();
+
+        if ship_alien_collision(ship, alien) {
+            alien.health -= 1;
+
+            if alien.health <= 0 {
+                alien.expired = true;
+                score.update_score_alien();
+                sounds.play_alien_explosion_sound(ctx);
+            } else {
+                sounds.play_alien_hit_sound(ctx);
+            }
+            new_particles = handle_ship_collision(ctx, rng, ship, sounds);
+        }
+        return Some(new_particles)
+    } else {
+        return None
+    }
 }
 
 pub fn handle_alien_projectile_collisions(ctx: &Context,
@@ -101,20 +132,20 @@ pub fn handle_alien_projectile_collisions(ctx: &Context,
     return (new_asteroids, new_particles);
 }
 
-fn handle_ship_asteroid_collision(ctx: &Context,
+fn handle_ship_collision(ctx: &Context,
                                   rng: &mut ThreadRng,
                                   ship: &mut Ship,
                                   sounds: &mut Sounds) -> Vec<Particle> {
     ship.health -= 1;
     ship.immune = true;
     ship.immune_instant = Instant::now();
-    sounds.play_asteroid_collision_sound(ctx);
+    sounds.play_ship_collision_sound(ctx);
 
     return Particle::create_particle_effect(
         rng,
         &ship.position,
-        6,
-        10,
+        5,
+        8,
         Color::WHITE
     )
 }
@@ -134,8 +165,8 @@ fn handle_alien_projectile_ship_hit(ctx: &Context,
     return Particle::create_particle_effect(
         rng,
         &ship.position,
-        6,
-        10,
+        5,
+        8,
     Color::GREEN);
 }
 
@@ -159,8 +190,8 @@ fn handle_projectile_alien_hit(ctx: &Context,
     return Particle::create_particle_effect(
         rng,
         &alien.position,
-        6,
-        10,
+        5,
+        8,
         Color::WHITE);
 }
 
@@ -236,6 +267,22 @@ pub fn ship_asteroid_collision(ship: &Ship, asteroid: &Asteroid) -> bool {
 
     let y_overlap: bool = (ship.collision_rect_ranges[1][1] > asteroid_y_range.0 && ship.collision_rect_ranges[1][1] < asteroid_y_range.1)
         || (ship.collision_rect_ranges[0][1] < asteroid_y_range.1 && asteroid_y_range.0 < ship.collision_rect_ranges[0][1]);
+
+    return x_overlap && y_overlap;
+}
+
+pub fn ship_alien_collision(ship: &Ship, alien: &Alien) -> bool {
+    let alien_x: f32 = alien.position.x;
+    let alien_y: f32 = alien.position.y;
+
+    let alien_x_range: (f32, f32) = (alien_x - ALIEN_X_BOUND + 5.0, alien_x + ALIEN_X_BOUND - 5.0);
+    let alien_y_range: (f32, f32) = (alien_y - ALIEN_NEGATIVE_Y_BOUND + 5.0, alien_y + ALIEN_POSITIVE_Y_BOUND - 5.0);
+
+    let x_overlap: bool = (ship.collision_rect_ranges[1][0] > alien_x_range.0 && ship.collision_rect_ranges[1][0] < alien_x_range.1)
+        || (ship.collision_rect_ranges[0][0] < alien_x_range.1 && alien_x_range.0 < ship.collision_rect_ranges[0][0]);
+
+    let y_overlap: bool = (ship.collision_rect_ranges[1][1] > alien_y_range.0 && ship.collision_rect_ranges[1][1] < alien_y_range.1)
+        || (ship.collision_rect_ranges[0][1] < alien_y_range.1 && alien_y_range.0 < ship.collision_rect_ranges[0][1]);
 
     return x_overlap && y_overlap;
 }

@@ -195,6 +195,6 @@ impl Alien {
     }
 
     pub fn check_expiration(&mut self, now_time: &Instant) -> () {
-        self.expired = self.expired || now_time.duration_since(self.creation_instant).as_secs_f32() > ALIEN_DURATION_SECS;
+        self.expired = self.expired || self.health <= 0 || now_time.duration_since(self.creation_instant).as_secs_f32() > ALIEN_DURATION_SECS;
     }
 }
