@@ -244,7 +244,7 @@ impl event::EventHandler<GameError> for Game {
         }
 
         // Spawn another asteroid
-        if self.asteroids.len() < 4 || (self.asteroids.len() < 4 && now.duration_since(self.last_asteroid_instant).as_secs_f32() > 8.0) {
+        if self.asteroids.len() < 4 || (self.asteroids.len() < 10 && now.duration_since(self.last_asteroid_instant).as_secs_f32() > 8.0) {
             player_projectile_new_asteroids_particles_tuple.0.push(Asteroid::new(ctx, &mut self.rng));
             self.last_asteroid_instant = now;
         }

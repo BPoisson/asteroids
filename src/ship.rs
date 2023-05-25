@@ -10,7 +10,7 @@ use crate::projectile::{Projectile};
 
 pub const FRICTION: f32 = 0.30;
 pub const SPEED: f32 = 350.0;
-pub const ROTATION_RADIANS: f32 = 270_f32;
+pub const ROTATION_RADIANS: f32 = 360_f32;
 
 pub enum RotationDirection {
     LEFT,
