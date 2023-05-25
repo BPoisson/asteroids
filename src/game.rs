@@ -1,15 +1,13 @@
 use std::collections::HashSet;
 use std::time::Instant;
-use ggez::{Context, event, GameError, GameResult, graphics};
-use ggez::glam::Vec2;
-use ggez::graphics::{Canvas, Color, PxScale, Text, TextLayout};
+use ggez::{Context, event, GameError, GameResult};
+use ggez::graphics::{Canvas, Color};
 use ggez::input::keyboard::{KeyCode, KeyInput};
 use rand::Rng;
 use rand::rngs::ThreadRng;
 use crate::alien::Alien;
 use crate::asteroid::Asteroid;
-use crate::{collision, save};
-use crate::constants::SCREEN_SIZE;
+use crate::{collision, save, ui};
 use crate::particle::Particle;
 use crate::projectile::Projectile;
 use crate::score::Score;
@@ -154,34 +152,6 @@ impl Game {
         }
     }
 
-    fn get_pause_text(&mut self) -> Text {
-        let high_score: u64 = save::get_high_score();
-        let pause_string: String = format!("Game Paused!\n\nYour Score: {}\n\nHigh Score: {}\n\nPress Q To Quit", self.score.score, high_score);
-        let mut pause_text: Text = Text::new(pause_string);
-        pause_text.set_scale(PxScale::from(50.0));
-        pause_text.set_layout(TextLayout::center());
-
-        return pause_text;
-    }
-
-    fn get_game_over_text(&mut self) -> Text {
-        let high_score: u64 = save::get_high_score();
-        let pause_string: String = format!("Game Over!\n\nYour Score: {}\n\nHigh Score: {}\n\nPress R To Restart\n\nPress Q To Quit", self.score.score, high_score);
-        let mut pause_text: Text = Text::new(pause_string);
-        pause_text.set_scale(PxScale::from(50.0));
-        pause_text.set_layout(TextLayout::center());
-
-        return pause_text;
-    }
-
-    fn draw_text(&mut self, canvas: &mut Canvas, text: Text) -> () {
-        canvas.draw(
-            &text,
-            graphics::DrawParam::default()
-                .dest(Vec2::new(SCREEN_SIZE.x / 2.0, SCREEN_SIZE.y / 2.0))
-        );
-    }
-
     fn check_game_over(&mut self) -> () {
         if self.ship.health <= 0 {
             self.game_over = true;
@@ -317,15 +287,7 @@ impl event::EventHandler<GameError> for Game {
 
         self.score.draw(&mut canvas);
 
-        if self.paused {
-            let pause_text: Text = self.get_pause_text();
-            self.draw_text(&mut canvas, pause_text);
-        }
-
-        if self.game_over {
-            let game_over_text: Text = self.get_game_over_text();
-            self.draw_text(&mut canvas, game_over_text);
-        }
+        ui::draw(ctx, &mut canvas, &self.paused, &self.game_over, &self.ship.health, &self.score.score);
 
         canvas.finish(ctx)?;
         Ok(())
