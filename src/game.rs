@@ -31,7 +31,8 @@ pub struct Game {
     last_alien_spawn_check_instant: Instant,
     spawn_alien: bool,
     sounds: Sounds,
-    paused: bool
+    paused: bool,
+    game_over: bool
 }
 
 impl Game {
@@ -39,15 +40,9 @@ impl Game {
         let mut rng: ThreadRng = rand::thread_rng();
         let now: Instant = Instant::now();
 
-        let mut asteroids: Vec<Asteroid> = Vec::new();
-
-        for _ in 0..3 {
-            asteroids.push(Asteroid::new(ctx, &mut rng));
-        }
-
         Game {
             ship: Ship::new(ctx),
-            asteroids,
+            asteroids: Game::initialize_asteroids(ctx, &mut rng),
             player_projectiles: Vec::new(),
             alien_projectiles: Vec::new(),
             particles: Vec::new(),
@@ -60,8 +55,19 @@ impl Game {
             last_alien_spawn_check_instant: now,    // Set to now so we don't spawn an Alien right away.
             spawn_alien: false,
             sounds: Sounds::new(ctx),
-            paused: false
+            paused: false,
+            game_over: false
         }
+    }
+
+    fn initialize_asteroids(ctx: &Context, rng: &mut ThreadRng) -> Vec<Asteroid> {
+        let mut asteroids: Vec<Asteroid> = Vec::new();
+
+        for _ in 0..4 {
+            asteroids.push(Asteroid::new(ctx, rng));
+        }
+
+        return asteroids;
     }
 
     fn alien_spawn_check(&mut self, now: &Instant) -> () {
@@ -150,7 +156,7 @@ impl Game {
 
     fn get_pause_text(&mut self) -> Text {
         let high_score: u64 = save::get_high_score();
-        let pause_string: String = format!("Game Paused!\n\nHigh Score: {}\n\nPress Q To Save And Quit", high_score);
+        let pause_string: String = format!("Game Paused!\n\nYour Score: {}\n\nHigh Score: {}\n\nPress Q To Quit", self.score.score, high_score);
         let mut pause_text: Text = Text::new(pause_string);
         pause_text.set_scale(PxScale::from(50.0));
         pause_text.set_layout(TextLayout::center());
@@ -158,14 +164,48 @@ impl Game {
         return pause_text;
     }
 
-    fn draw_pause_text(&mut self, canvas: &mut Canvas) -> () {
-        let pause_text: Text = self.get_pause_text();
+    fn get_game_over_text(&mut self) -> Text {
+        let high_score: u64 = save::get_high_score();
+        let pause_string: String = format!("Game Over!\n\nYour Score: {}\n\nHigh Score: {}\n\nPress R To Restart\n\nPress Q To Quit", self.score.score, high_score);
+        let mut pause_text: Text = Text::new(pause_string);
+        pause_text.set_scale(PxScale::from(50.0));
+        pause_text.set_layout(TextLayout::center());
 
+        return pause_text;
+    }
+
+    fn draw_text(&mut self, canvas: &mut Canvas, text: Text) -> () {
         canvas.draw(
-            &pause_text,
+            &text,
             graphics::DrawParam::default()
                 .dest(Vec2::new(SCREEN_SIZE.x / 2.0, SCREEN_SIZE.y / 2.0))
         );
+    }
+
+    fn check_game_over(&mut self) -> () {
+        if self.ship.health <= 0 {
+            self.game_over = true;
+        }
+    }
+
+    fn handle_reset(&mut self, ctx: &Context) -> () {
+        let now: Instant = Instant::now();
+
+        self.ship = Ship::new(ctx);
+        self.asteroids = Game::initialize_asteroids(ctx, &mut self.rng);
+        self.player_projectiles = Vec::new();
+        self.alien_projectiles = Vec::new();
+        self.particles = Vec::new();
+        self.alien = None;
+        self.score = Score::new();
+        self.input_set = HashSet::new();
+        self.last_update = now;
+        self.last_asteroid_instant = now;
+        self.last_alien_spawn_check_instant = now;
+        self.spawn_alien = false;
+        self.sounds = Sounds::new(ctx);
+        self.paused = false;
+        self.game_over = false;
     }
 
     fn clean_up(&mut self, ctx: &Context, now: &Instant) -> () {
@@ -194,7 +234,7 @@ impl event::EventHandler<GameError> for Game {
         let dt: f32 = now.duration_since(self.last_update).as_secs_f32();
         self.last_update = now;
 
-        if self.paused {
+        if self.paused || self.game_over {
             return Ok(());
         }
 
@@ -230,7 +270,7 @@ impl event::EventHandler<GameError> for Game {
         }
 
         // Spawn another asteroid
-        if self.asteroids.len() < 3 || (self.asteroids.len() < 50 && now.duration_since(self.last_asteroid_instant).as_secs_f32() > 8.0) {
+        if self.asteroids.len() < 4 || (self.asteroids.len() < 10 && now.duration_since(self.last_asteroid_instant).as_secs_f32() > 8.0) {
             player_projectile_new_asteroids_particles_tuple.0.push(Asteroid::new(ctx, &mut self.rng));
             self.last_asteroid_instant = now;
         }
@@ -243,13 +283,17 @@ impl event::EventHandler<GameError> for Game {
         self.particles.append(&mut player_projectile_new_asteroids_particles_tuple.1);
         self.particles.append(&mut alien_projectile_new_asteroids_particles_tuple.1);
 
+        self.check_game_over();
+
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas: Canvas = Canvas::from_frame(ctx, Color::BLACK);
 
-        self.ship.draw(ctx, &mut canvas, &mut self.rng);
+        if !self.game_over {
+            self.ship.draw(ctx, &mut canvas, &mut self.rng);
+        }
 
         for player_projectile in &mut self.player_projectiles {
             player_projectile.draw(&mut canvas);
@@ -274,7 +318,13 @@ impl event::EventHandler<GameError> for Game {
         self.score.draw(&mut canvas);
 
         if self.paused {
-            self.draw_pause_text(&mut canvas);
+            let pause_text: Text = self.get_pause_text();
+            self.draw_text(&mut canvas, pause_text);
+        }
+
+        if self.game_over {
+            let game_over_text: Text = self.get_game_over_text();
+            self.draw_text(&mut canvas, game_over_text);
         }
 
         canvas.finish(ctx)?;
@@ -282,25 +332,29 @@ impl event::EventHandler<GameError> for Game {
     }
 
     fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, _repeated: bool) -> Result<(), GameError> {
+        let register_actions: bool = !self.paused && !self.game_over;
+
         if let Some(key) = input.keycode {
-            if key == KeyCode::Up {
+            if key == KeyCode::Up && register_actions {
                 self.ship.thrusting = true;
                 self.sounds.play_thrust_sound(ctx);
-            } else if key == KeyCode::Space && !self.input_set.contains(&key) {
+            } else if key == KeyCode::Space && !self.input_set.contains(&key) && register_actions {
                 let player_projectile: Projectile = self.ship.shoot(ctx);
 
                 self.player_projectiles.push(player_projectile);
 
                 self.sounds.play_player_shoot_sound(ctx);
-            } else if key == KeyCode::Escape {
+            } else if !self.game_over && key == KeyCode::Escape {
                 self.paused = !self.paused;
-            } else if key == KeyCode::Q && self.paused {
-                if save::get_high_score() < self.score.score {
-                    save::save_high_score(self.score.score);
-                }
+            } else if key == KeyCode::Q && (self.paused || self.game_over) {
+                save::save_high_score(self.score.score);
                 ctx.request_quit();
+            } else if key == KeyCode::R && self.game_over {
+                save::save_high_score(self.score.score);
+                self.handle_reset(ctx);
             }
-            if key != KeyCode::Escape && key != KeyCode::Q {
+
+            if key != KeyCode::Escape && key != KeyCode::Q && key != KeyCode::R {
                 self.input_set.insert(key);
             }
         }

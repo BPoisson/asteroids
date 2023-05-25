@@ -105,7 +105,6 @@ fn handle_ship_asteroid_collision(ctx: &Context,
                                   rng: &mut ThreadRng,
                                   ship: &mut Ship,
                                   sounds: &mut Sounds) -> Vec<Particle> {
-    println!("Asteroid collision!");
     ship.health -= 1;
     ship.immune = true;
     ship.immune_instant = Instant::now();
@@ -129,8 +128,6 @@ fn handle_alien_projectile_ship_hit(ctx: &Context,
     ship.health -= 1;
     ship.immune = true;
     ship.immune_instant = Instant::now();
-    
-    println!("Player hit!");
 
     sounds.play_ship_hit_sound(ctx);
 

@@ -84,11 +84,6 @@ impl Ship {
                 DrawParam::default()
             );
         }
-
-        canvas.draw(
-            &self.collision_rect_mesh,
-            DrawParam::default()
-        );
     }
 
     pub fn apply_thrust(&mut self, dt: &f32) -> () {

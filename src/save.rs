@@ -13,5 +13,7 @@ pub fn get_high_score() -> u64 {
 }
 
 pub fn save_high_score(score: u64) -> () {
-    fs::write(SAVE_FILE_PATH, score.to_string()).unwrap();
+    if get_high_score() < score {
+        fs::write(SAVE_FILE_PATH, score.to_string()).unwrap();
+    }
 }
